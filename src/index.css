@@ -1,0 +1,482 @@
+:root {
+  --primary-violet: #6d28d9;
+  --primary-violet-hover: #5b21b6;
+  --bg-dark: #0f172a;
+  --bg-card: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-blue: #38bdf8;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --border-color: #334155;
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text-main);
+  margin-bottom: 1rem;
+}
+
+button {
+  cursor: pointer;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+button.primary {
+  background-color: var(--primary-violet);
+  color: white;
+}
+
+button.primary:hover {
+  background-color: var(--primary-violet-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(109, 40, 217, 0.3);
+}
+
+input,
+select {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: inherit;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid var(--primary-violet);
+  border-color: transparent;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  padding: 1.5rem;
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: scale(1.02);
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-stock {
+  background-color: var(--accent-green);
+  color: white;
+}
+
+.badge-empty {
+  background-color: var(--accent-red);
+  color: white;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+}
+
+nav a.active {
+  color: white;
+  background-color: var(--primary-violet);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* ─── Dashboard Header ──────────────────────────────────────────── */
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header h2 {
+  margin-bottom: 0;
+}
+
+.refresh-btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
+}
+
+.last-fetch-info {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.stock-summary-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.stock-summary-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.chip-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.chip-total {
+  font-weight: 800;
+  font-size: 1.3rem;
+  margin-left: auto;
+}
+
+.chip-total.positive {
+  color: var(--accent-green);
+}
+
+.chip-total.zero {
+  color: var(--accent-red);
+}
+
+/* ─── Product Stock Cards ───────────────────────────────────────── */
+
+.product-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.product-stock-card {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.product-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.2s ease;
+}
+
+.product-card-header:hover {
+  background: rgba(109, 40, 217, 0.08);
+}
+
+.product-card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.total-badge {
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.total-badge.positive {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.total-badge.zero {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+.expand-arrow {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ─── Stock Matrix Table ────────────────────────────────────────── */
+
+.stock-matrix-wrapper {
+  padding: 1rem 1.5rem 1.5rem;
+  overflow-x: auto;
+}
+
+.stock-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+.stock-matrix th,
+.stock-matrix td {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border-color);
+}
+
+.matrix-corner {
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: left;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.matrix-color-header {
+  background: rgba(109, 40, 217, 0.1);
+  color: var(--primary-violet);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.matrix-total-header {
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent-blue);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.matrix-size-label {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-main);
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.matrix-cell {
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.matrix-cell.has-stock {
+  color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.matrix-cell.no-stock {
+  color: var(--accent-red);
+  opacity: 0.6;
+}
+
+.matrix-cell.negative-stock {
+  color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.1);
+  font-weight: 800;
+}
+
+.matrix-row-total,
+.matrix-col-total {
+  background: rgba(56, 189, 248, 0.05) !important;
+  font-weight: 800 !important;
+}
+
+.matrix-grand-total {
+  background: rgba(109, 40, 217, 0.1) !important;
+  font-size: 1.15rem !important;
+  font-weight: 900 !important;
+}
+
+.matrix-totals-row td {
+  border-top: 2px solid var(--primary-violet);
+}
+
+/* ─── History Filters ───────────────────────────────────────────── */
+
+.history-filters {
+  margin-bottom: 1.5rem;
+}
+
+.filters-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  flex: 1;
+  min-width: 180px;
+}
+
+.filter-group label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.filter-group select {
+  margin-bottom: 0;
+}
+
+.history-stats {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.stat-chip.entrada {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent-green);
+}
+
+.stat-chip.salida {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--accent-red);
+}
+
+.stat-chip.total {
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent-blue);
+}
+
+/* ─── Movement Cards ────────────────────────────────────────────── */
+
+.movement-card {
+  padding: 1rem 1.25rem !important;
+}
+
+.movement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.movement-header-left {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* ─── Responsive ────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .stock-summary-bar {
+    flex-direction: column;
+  }
+
+  .stock-summary-chip {
+    min-width: 100%;
+  }
+
+  .filters-row {
+    flex-direction: column;
+  }
+
+  .product-card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stock-matrix th,
+  .stock-matrix td {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+  }
+}
