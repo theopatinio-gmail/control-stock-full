@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './index.css'
 import Dashboard from './components/Dashboard'
 import StockEntryForm from './components/StockEntryForm'
@@ -8,46 +8,62 @@ import MLConnectionPanel from './components/MLConnectionPanel'
 import { INITIAL_STATE } from './constants/initialState'
 import { calculateStock, isDuplicateOp } from './utils/stockLogic'
 
+const SAVE_DEBOUNCE_MS = 600
+
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [data, setData] = useState(INITIAL_STATE)
   const [loading, setLoading] = useState(true)
+  const [saveStatus, setSaveStatus] = useState(null) // 'saving' | 'saved' | 'error'
+  const saveTimeoutRef = useRef(null)
 
   // Load data from API on mount (also used after ML sync)
   const loadData = () => {
-    console.log('App: Fetching data from API...');
     fetch('/api/data')
       .then(res => {
-        if (!res.ok) throw new Error('Network response was not ok');
+        if (!res.ok) throw new Error('Error al cargar datos');
         return res.json();
       })
       .then(json => {
-        console.log('App: Data loaded successfully:', json);
         setData(json)
         setLoading(false)
       })
       .catch(err => {
         console.error('App: Error loading data:', err)
+        setSaveStatus('error')
         setLoading(false)
       })
   }
 
   useEffect(() => { loadData() }, [])
 
-  // Save data to API whenever it changes (auto-sync)
+  // Save data to API with debounce (evita múltiples guardados seguidos)
   useEffect(() => {
-    if (!loading) {
-      console.log('App: Data changed, syncing to server...', data);
+    if (loading) return
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+
+    saveTimeoutRef.current = setTimeout(() => {
+      setSaveStatus('saving')
       fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
         .then(res => {
-          if (!res.ok) throw new Error('Save failed');
-          console.log('App: Sync complete');
+          if (!res.ok) throw new Error('Error al guardar');
+          setSaveStatus('saved')
+          setTimeout(() => setSaveStatus(null), 2000)
         })
-        .catch(err => console.error('App: Sync error:', err))
+        .catch(err => {
+          console.error('App: Sync error:', err)
+          setSaveStatus('error')
+        })
+        .finally(() => { saveTimeoutRef.current = null })
+    }, SAVE_DEBOUNCE_MS)
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
     }
   }, [data, loading])
 
@@ -78,12 +94,28 @@ function App() {
   return (
     <div className="container animate-fade-in">
       <header>
-        <h1 style={{ color: 'var(--primary-violet)', fontSize: '2.5rem', marginBottom: '0.5rem' }}>
-          FRIKA - Control Stock Full
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-          Gestión inteligente mercadería en depósitos de Mercado Libre.
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h1 style={{ color: 'var(--primary-violet)', fontSize: '2.5rem', marginBottom: '0.5rem' }}>
+              FRIKA - Control Stock Full
+            </h1>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
+              Gestión inteligente mercadería en depósitos de Mercado Libre.
+            </p>
+          </div>
+          {saveStatus && (
+            <span style={{
+              fontSize: '0.8rem', padding: '0.3rem 0.6rem', borderRadius: 6,
+              background: saveStatus === 'saved' ? 'rgba(34,197,94,0.2)' : saveStatus === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(139,92,246,0.2)',
+              color: saveStatus === 'saved' ? '#22c55e' : saveStatus === 'error' ? '#ef4444' : 'var(--primary-violet)'
+            }}>
+              {saveStatus === 'saving' && 'Guardando...'}
+              {saveStatus === 'saved' && '✓ Guardado'}
+              {saveStatus === 'error' && 'Error al guardar'}
+            </span>
+          )}
+        </div>
+        <div style={{ marginBottom: '2rem' }} />
       </header>
 
       <nav>
@@ -124,7 +156,7 @@ function App() {
           <div style={{ textAlign: 'center', padding: '2rem' }}>Cargando datos...</div>
         ) : (
           <>
-            {activeTab === 'dashboard' && <Dashboard stock={currentStock} stockEntries={data.stockEntries} sales={data.sales} />}
+            {activeTab === 'dashboard' && <Dashboard stock={currentStock} />}
             {activeTab === 'entry' && (
               <StockEntryForm
                 onSave={addStockEntry}

@@ -1,36 +1,10 @@
 import React from 'react';
-import { PRODUCT_CATALOG, normalizeProductName, SIZE_ORDER } from '../utils/productMapping';
+import { PRODUCT_CATALOG } from '../utils/productMapping';
+import { stockToMap } from '../utils/stockLogic';
 
-const Dashboard = ({ stock, stockEntries, sales }) => {
-
-    // Build stock data from entries and sales (calculated)
-    const buildStockFromData = () => {
-        const stockMap = {};
-
-        // Process entries
-        (stockEntries || []).forEach(entry => {
-            const product = normalizeProductName(entry.product);
-            (entry.variants || []).forEach(v => {
-                const talle = (v.talle || '').toUpperCase();
-                const color = v.color || '';
-                const key = `${product}|${talle}|${color}`;
-                stockMap[key] = (stockMap[key] || 0) + (v.cantidad || 0);
-            });
-        });
-
-        // Subtract sales
-        (sales || []).forEach(sale => {
-            const product = normalizeProductName(sale.product);
-            const talle = (sale.talle || '').toUpperCase();
-            const color = sale.color || '';
-            const key = `${product}|${talle}|${color}`;
-            stockMap[key] = (stockMap[key] || 0) - (sale.cantidad || 1);
-        });
-
-        return stockMap;
-    };
-
-    const stockMap = buildStockFromData();
+const Dashboard = ({ stock }) => {
+    // stock viene de calculateStock (fuente única de verdad)
+    const stockMap = stockToMap(stock);
 
     // Build per-product cards using catalog
     const productCards = PRODUCT_CATALOG.map(catalogEntry => {

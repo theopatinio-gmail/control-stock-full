@@ -64,3 +64,16 @@ export const getProductList = (stockEntries) => {
   const products = stockEntries.map(e => e.product);
   return [...new Set(products)];
 };
+
+/**
+ * Convierte el array de stock (de calculateStock) a un mapa clave -> cantidad
+ * para uso en Dashboard. Clave: "producto|talle|color"
+ */
+export const stockToMap = (stockArray) => {
+  const map = {};
+  (stockArray || []).forEach(item => {
+    const key = `${item.product}|${(item.talle || '').toUpperCase()}|${item.color || ''}`;
+    map[key] = item.quantity;
+  });
+  return map;
+};

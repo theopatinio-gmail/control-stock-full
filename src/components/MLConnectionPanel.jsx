@@ -20,6 +20,12 @@ export default function MLConnectionPanel({ onSyncComplete }) {
     })
     const [customRedirect, setCustomRedirect] = useState('')
 
+    // Config avanzada (IDs Full, fecha snapshot)
+    const [fullItemIds, setFullItemIds] = useState('')
+    const [snapshotDate, setSnapshotDate] = useState('')
+    const [showAdvanced, setShowAdvanced] = useState(false)
+    const [savingAdvanced, setSavingAdvanced] = useState(false)
+
     // Flujo OAuth manual
     const [authUrl, setAuthUrl] = useState('')
     const [authCode, setAuthCode] = useState('')
@@ -41,6 +47,9 @@ export default function MLConnectionPanel({ onSyncComplete }) {
             setMlStatus(d)
             if (d.client_id) setClientId(d.client_id)
             if (d.redirect_uri) setCustomRedirect(d.redirect_uri)
+            if (d.full_item_ids?.length) setFullItemIds(d.full_item_ids.join(', '))
+            else setFullItemIds('MLA864272312, MLA2686396878')
+            setSnapshotDate(d.snapshot_date || '2026-02-19')
         } catch (e) {
             console.error('Error fetching ML status:', e)
         }
@@ -265,6 +274,64 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                         </button>
                     </div>
                 </form>
+
+                {/* Config avanzada */}
+                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--card-border)' }}>
+                    <button
+                        type="button"
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                        {showAdvanced ? '▼' : '▶'} Configuración avanzada (IDs Full, fecha snapshot)
+                    </button>
+                    {showAdvanced && (
+                        <form onSubmit={async (e) => {
+                            e.preventDefault()
+                            setSavingAdvanced(true)
+                            try {
+                                const ids = fullItemIds.split(/[,\s]+/).filter(Boolean)
+                                const r = await fetch('/api/ml/config', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ full_item_ids: ids, snapshot_date: snapshotDate.trim() || null })
+                                })
+                                const d = await r.json()
+                                if (d.success) {
+                                    await fetchStatus()
+                                    alert('Configuración guardada')
+                                } else alert('Error: ' + (d.error || 'desconocido'))
+                            } catch (err) { alert('Error: ' + err.message) }
+                            setSavingAdvanced(false)
+                        }} style={{ marginTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                                    IDs de productos Full (separados por coma)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={fullItemIds}
+                                    onChange={e => setFullItemIds(e.target.value)}
+                                    placeholder="MLA864272312, MLA2686396878"
+                                    style={{ width: '100%', padding: '0.5rem', borderRadius: 6, border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                                    Fecha snapshot (solo ventas posteriores)
+                                </label>
+                                <input
+                                    type="date"
+                                    value={snapshotDate}
+                                    onChange={e => setSnapshotDate(e.target.value)}
+                                    style={{ padding: '0.5rem', borderRadius: 6, border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem' }}
+                                />
+                            </div>
+                            <button type="submit" disabled={savingAdvanced} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--primary-violet)', color: '#fff', fontSize: '0.9rem' }}>
+                                {savingAdvanced ? 'Guardando...' : 'Guardar configuración avanzada'}
+                            </button>
+                        </form>
+                    )}
+                </div>
             </div>
 
             {/* Paso 2: Autorizar */}

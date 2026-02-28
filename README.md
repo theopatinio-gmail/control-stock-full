@@ -37,6 +37,7 @@ npm install
    - Configurar Redirect URI: `https://127.0.0.1`
    - Pegar App ID y Secret Key
    - Autorizar y pegar el código de la URL de retorno
+   - En "Configuración avanzada": agregar los IDs de tus productos Full (MLA...) y la fecha del último snapshot de stock
    - Sincronizar ventas
 
 ## Estructura

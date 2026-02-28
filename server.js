@@ -29,7 +29,11 @@ const INITIAL_ML_CONFIG = {
     refresh_token: '',
     user_id: '',
     last_sync: null,
-    redirect_uri: 'https://127.0.0.1'
+    redirect_uri: 'https://127.0.0.1',
+    // IDs de productos Full a sincronizar (agregar los que uses)
+    full_item_ids: ['MLA864272312', 'MLA2686396878'],
+    // Solo importar ventas posteriores a esta fecha (formato YYYY-MM-DD)
+    snapshot_date: '2026-02-19'
 };
 if (!fs.existsSync(ML_CONFIG_FILE)) {
     fs.writeFileSync(ML_CONFIG_FILE, JSON.stringify(INITIAL_ML_CONFIG, null, 2));
@@ -79,22 +83,26 @@ app.get('/api/ml/status', (req, res) => {
             hasToken: !!cfg.access_token,
             user_id: cfg.user_id || null,
             last_sync: cfg.last_sync,
-            redirect_uri: cfg.redirect_uri || 'https://127.0.0.1'
+            redirect_uri: cfg.redirect_uri || 'https://127.0.0.1',
+            full_item_ids: cfg.full_item_ids || [],
+            snapshot_date: cfg.snapshot_date || null
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// POST guardar credenciales
+// POST guardar credenciales y configuración de sync
 app.post('/api/ml/config', (req, res) => {
     try {
-        const { client_id, client_secret, redirect_uri } = req.body;
+        const { client_id, client_secret, redirect_uri, full_item_ids, snapshot_date } = req.body;
         const cfg = readMlConfig();
 
-        if (client_id) cfg.client_id = client_id;
-        if (client_secret) cfg.client_secret = client_secret;
-        if (redirect_uri) cfg.redirect_uri = redirect_uri;
+        if (client_id !== undefined) cfg.client_id = client_id;
+        if (client_secret !== undefined) cfg.client_secret = client_secret;
+        if (redirect_uri !== undefined) cfg.redirect_uri = redirect_uri;
+        if (Array.isArray(full_item_ids)) cfg.full_item_ids = full_item_ids;
+        if (snapshot_date) cfg.snapshot_date = snapshot_date;
 
         if (!cfg.client_id || !cfg.client_secret) {
             return res.status(400).json({ error: 'Se requiere al menos el Client ID y Secret una vez.' });
@@ -226,13 +234,9 @@ app.post('/api/ml/sync', async (req, res) => {
         const sellerId = me.id;
         console.log('[ML Sync] Token válido. User:', me.nickname, 'ID:', sellerId);
 
-        // ── Configuración: solo estos items Full nos interesan ──
-        const FULL_ITEM_IDS = new Set([
-            'MLA864272312',   // Pantalón Palazzo De Jean
-            'MLA2686396878',  // Bermuda Mujer Gabardina Cintura
-        ]);
-        // Solo importar ventas POSTERIORES al snapshot de stock
-        const SNAPSHOT_DATE = '2026-02-19';
+        // ── Configuración desde ml_config.json ──
+        const FULL_ITEM_IDS = new Set(cfg.full_item_ids || ['MLA864272312', 'MLA2686396878']);
+        const SNAPSHOT_DATE = cfg.snapshot_date || '2026-02-19';
 
         // 1. Obtener órdenes de venta (solo posteriores al snapshot)
         console.log(`[ML Sync] Buscando órdenes Full desde ${SNAPSHOT_DATE}...`);
@@ -308,9 +312,16 @@ app.post('/api/ml/sync', async (req, res) => {
             existingOpNumbers.add(orderId);
         }
 
-        // 4. Guardar las ventas nuevas en data.json
+        // 4. Guardar las ventas nuevas en data.json y actualizar lista de productos
         if (allNewSales.length > 0) {
             currentData.sales = [...allNewSales, ...currentData.sales];
+            const existingProducts = new Set(currentData.products || []);
+            allNewSales.forEach(s => {
+                if (s.product && !existingProducts.has(s.product)) {
+                    existingProducts.add(s.product);
+                }
+            });
+            currentData.products = [...existingProducts];
             fs.writeFileSync(DATA_FILE, JSON.stringify(currentData, null, 2));
         }
 

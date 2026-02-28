@@ -14,8 +14,9 @@ const SalesForm = ({ onSave, stock, existingProducts }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!product || !talle || !color || !opNumber) {
-            alert('Por favor complete todos los campos.');
+        const opTrimmed = (opNumber || '').toString().trim();
+        if (!product || !talle || !color || !opTrimmed) {
+            alert('Por favor complete todos los campos (incluido el Nro de Operación).');
             return;
         }
 
@@ -24,7 +25,7 @@ const SalesForm = ({ onSave, stock, existingProducts }) => {
             product,
             talle,
             color,
-            opNumber,
+            opNumber: opTrimmed,
             fechaVenta,
             cantidad: 1 // Standard sale is 1 unit
         });

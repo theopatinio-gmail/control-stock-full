@@ -16,7 +16,7 @@ const MovementsHistory = ({ stockEntries, sales }) => {
     const allMovements = [
         ...stockEntries.map((entry, idx) => ({
             type: 'entrada',
-            date: entry.fechaEnvio,
+            date: entry.fechaEnvio || entry.date,
             product: normalizeProductName(entry.product),
             rawProduct: entry.product,
             variants: entry.variants,
