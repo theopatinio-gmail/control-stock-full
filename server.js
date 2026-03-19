@@ -380,17 +380,44 @@ app.post('/api/ml/sync', async (req, res) => {
             existingOpNumbers.add(orderId);
         }
 
-        // 3. Importar ingresos Full (inbound_reception) para los items configurados
-        let allNewEntries = [];
-        const fullItemIds = Array.isArray(cfg.full_item_ids) ? cfg.full_item_ids.filter(Boolean) : [];
+        // 3. Obtener todos los items activos del seller para descubrir ingresos a Full automáticamente
+        let allSellerItems = new Set();
+        try {
+            console.log(`[ML Sync] Buscando todos los items activos del vendedor ${sellerId}...`);
+            let itemOffset = 0;
+            const itemLimit = 50;
+            let fetchingItems = true;
+            while (fetchingItems) {
+                const searchRes = await mlGet(`/users/${sellerId}/items/search?status=active&offset=${itemOffset}&limit=${itemLimit}`, token);
+                const results = searchRes.results || [];
+                for (const id of results) allSellerItems.add(id);
 
-        if (fullItemIds.length > 0) {
-            console.log(`[ML Sync] Buscando ingresos Full desde ${OPERATIONS_DATE_FROM} hasta ${TODAY_DATE}...`);
+                const total = searchRes.paging?.total || 0;
+                itemOffset += itemLimit;
+                fetchingItems = itemOffset < total && results.length > 0;
+            }
+            console.log(`[ML Sync] Se encontraron ${allSellerItems.size} items activos en total.`);
+        } catch (e) {
+            console.warn(`[ML Sync]   ⚠️ No se pudieron obtener los items del vendedor: ${e.message}`);
+        }
+
+        // Agregar también los configurados manualmente (por si hay inactivos con stock)
+        const configuredIds = Array.isArray(cfg.full_item_ids) ? cfg.full_item_ids.filter(Boolean) : [];
+        configuredIds.forEach(id => allSellerItems.add(id));
+
+        // 4. Importar ingresos Full (inbound_reception) para los items descubiertos
+        let allNewEntries = [];
+
+        if (allSellerItems.size > 0) {
+            console.log(`[ML Sync] Verificando cuáles de los ${allSellerItems.size} items son Full y buscando sus ingresos desde ${OPERATIONS_DATE_FROM} hasta ${TODAY_DATE}...`);
 
             const inventoryMap = new Map();
 
-            for (const itemId of fullItemIds) {
+            for (const itemId of allSellerItems) {
                 try {
+                    const isFull = await isFullItem(itemId);
+                    if (!isFull) continue;
+
                     const item = await getItem(itemId);
                     if (!item) continue;
 
@@ -428,18 +455,20 @@ app.post('/api/ml/sync', async (req, res) => {
 
                     while (hasMore) {
                         const operationsRes = await mlGet(
-                            `/stock/fulfillment/operations/search?seller_id=${sellerId}&inventory_id=${encodeURIComponent(inventoryId)}&type=inbound_reception&date_from=${OPERATIONS_DATE_FROM}&date_to=${TODAY_DATE}&limit=${limit}&offset=${offset}&sort=date_desc`,
+                            `/stock/fulfillment/operations/search?seller_id=${sellerId}&inventory_id=${encodeURIComponent(inventoryId)}&date_from=${OPERATIONS_DATE_FROM}&date_to=${TODAY_DATE}&limit=${limit}&offset=${offset}`,
                             token
                         );
 
                         const operations = operationsRes.results || [];
                         for (const operation of operations) {
+                            if (operation.type !== 'INBOUND_RECEPTION') continue;
+
                             const operationId = String(operation.id);
                             if (existingInboundOperationIds.has(operationId)) continue;
 
                             const quantity = Number(
-                                operation.result?.available_quantity
-                                ?? operation.detail?.available_quantity
+                                operation.detail?.available_quantity
+                                ?? operation.result?.available_quantity
                                 ?? operation.result?.total
                                 ?? 0
                             );
