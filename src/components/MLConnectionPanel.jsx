@@ -421,10 +421,10 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                 opacity: isConnected ? 1 : 0.4, pointerEvents: isConnected ? 'auto' : 'none'
             }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--text)' }}>
-                    Paso 3 — Sincronizar ventas
+                    Paso 3 — Sincronizar movimientos Full
                 </h3>
                 <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    Importa las últimas ventas de ML (últimos 60 días) sin duplicar las ya existentes.
+                    Importa ventas y recepciones de Full desde Mercado Libre sin duplicar las ya existentes.
                     {mlStatus.last_sync && (
                         <span> Último sync: <strong>{formatDate(mlStatus.last_sync)}</strong></span>
                     )}
@@ -456,7 +456,65 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                             {syncResult.message}
                         </p>
 
+                        {(syncResult.newSales > 0 || syncResult.newEntries > 0) && (
+                            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                                <span style={{
+                                    padding: '0.35rem 0.7rem',
+                                    borderRadius: 999,
+                                    background: 'rgba(239,68,68,0.12)',
+                                    color: '#ef4444',
+                                    fontWeight: 700,
+                                    fontSize: '0.8rem'
+                                }}>
+                                    Ventas: {syncResult.newSales || 0}
+                                </span>
+                                <span style={{
+                                    padding: '0.35rem 0.7rem',
+                                    borderRadius: 999,
+                                    background: 'rgba(34,197,94,0.12)',
+                                    color: '#22c55e',
+                                    fontWeight: 700,
+                                    fontSize: '0.8rem'
+                                }}>
+                                    Ingresos: {syncResult.newEntries || 0}
+                                </span>
+                            </div>
+                        )}
+
                         {syncResult.sales && syncResult.sales.length > 0 && (
+                            <>
+                                <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>Ventas importadas</p>
+                                <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--card-border)' }}>
+                                                {['Operación', 'Producto', 'Talle', 'Color', 'Cant.', 'Fecha'].map(h => (
+                                                    <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {syncResult.sales.map((s, i) => (
+                                                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                                        {String(s.opNumber).slice(0, 16)}
+                                                    </td>
+                                                    <td style={{ padding: '0.4rem 0.6rem' }}>{s.product}</td>
+                                                    <td style={{ padding: '0.4rem 0.6rem' }}>{s.talle}</td>
+                                                    <td style={{ padding: '0.4rem 0.6rem' }}>{s.color}</td>
+                                                    <td style={{ padding: '0.4rem 0.6rem', textAlign: 'center' }}>{s.cantidad}</td>
+                                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{s.fechaVenta}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+
+                        {syncResult.entries && syncResult.entries.length > 0 && (
+                            <>
+                                <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>Ingresos importados</p>
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                     <thead>
@@ -467,21 +525,24 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {syncResult.sales.map((s, i) => (
+                                        {syncResult.entries.map((entry, i) => (
                                             <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                                 <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                                                    {String(s.opNumber).slice(0, 16)}
+                                                    {String(entry.mlOperationId || entry.mlInboundId || entry.id).slice(0, 16)}
                                                 </td>
-                                                <td style={{ padding: '0.4rem 0.6rem' }}>{s.product}</td>
-                                                <td style={{ padding: '0.4rem 0.6rem' }}>{s.talle}</td>
-                                                <td style={{ padding: '0.4rem 0.6rem' }}>{s.color}</td>
-                                                <td style={{ padding: '0.4rem 0.6rem', textAlign: 'center' }}>{s.cantidad}</td>
-                                                <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{s.fechaVenta}</td>
+                                                <td style={{ padding: '0.4rem 0.6rem' }}>{entry.product}</td>
+                                                <td style={{ padding: '0.4rem 0.6rem' }}>{entry.variants?.[0]?.talle || 'Unico'}</td>
+                                                <td style={{ padding: '0.4rem 0.6rem' }}>{entry.variants?.[0]?.color || 'Unico'}</td>
+                                                <td style={{ padding: '0.4rem 0.6rem', textAlign: 'center', color: '#22c55e', fontWeight: 700 }}>
+                                                    +{entry.variants?.[0]?.cantidad || 0}
+                                                </td>
+                                                <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{entry.fechaEnvio}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
+                            </>
                         )}
                     </div>
                 )}

@@ -29,6 +29,14 @@ export const PRODUCT_CATALOG = [
         ],
         colors: ['Tostado', 'Khaki'],
         sizes: ['S', 'M', 'L', 'XL', 'XXL']
+    },
+    {
+        canonical: 'Conjunto de Morley',
+        aliases: [
+            'Conjunto De Morley Mujer Pantalón Recto. Oversize',
+        ],
+        colors: ['Negro', 'Castaña'],
+        sizes: ['S', 'M', 'L', 'XL', 'XXL']
     }
 ];
 
@@ -45,12 +53,32 @@ PRODUCT_CATALOG.forEach(product => {
 
 /**
  * Normalizes a product name to its canonical form.
- * If no match is found, returns the original name trimmed.
+ * Uses exact match first, then falls back to prefix matching
+ * because ML appends variant info (size/color) to product titles
+ * for variant-specific listings (e.g., "Negro Xxl" at the end).
  */
 export function normalizeProductName(rawName) {
     if (!rawName) return rawName;
     const key = rawName.toLowerCase().trim();
-    return _aliasMap.get(key) || rawName.trim();
+
+    // 1. Exact match
+    const exactMatch = _aliasMap.get(key);
+    if (exactMatch) return exactMatch;
+
+    // 2. Prefix match: check if the raw name starts with any known alias
+    //    This handles ML's variant-specific titles like
+    //    "Pantalón Palazzo De Jean Mujer Tiro Alto Ancho Negro Xxl"
+    let bestMatch = null;
+    let bestLength = 0;
+    for (const [alias, canonical] of _aliasMap) {
+        if (key.startsWith(alias) && alias.length > bestLength) {
+            bestMatch = canonical;
+            bestLength = alias.length;
+        }
+    }
+    if (bestMatch) return bestMatch;
+
+    return rawName.trim();
 }
 
 /**

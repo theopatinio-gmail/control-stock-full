@@ -217,6 +217,35 @@ async function refreshTokenIfNeeded(cfg) {
     return cfg;
 }
 
+function clampDateToLast60Days(dateStr) {
+    const now = new Date();
+    const minAllowed = new Date(now);
+    minAllowed.setDate(minAllowed.getDate() - 59);
+
+    const minStr = minAllowed.toISOString().split('T')[0];
+    if (!dateStr || dateStr < minStr) {
+        return minStr;
+    }
+    return dateStr;
+}
+
+function extractVariantAttributes(attributes = []) {
+    let talle = 'Unico';
+    let color = 'Unico';
+
+    for (const attr of attributes) {
+        const name = attr?.name?.toLowerCase() || '';
+        if (name.includes('talle') || name.includes('talla') || name.includes('size')) {
+            talle = attr.value_name || talle;
+        }
+        if (name.includes('color')) {
+            color = attr.value_name || color;
+        }
+    }
+
+    return { talle, color };
+}
+
 app.post('/api/ml/sync', async (req, res) => {
     try {
         let cfg = readMlConfig();
@@ -234,34 +263,82 @@ app.post('/api/ml/sync', async (req, res) => {
         const sellerId = me.id;
         console.log('[ML Sync] Token válido. User:', me.nickname, 'ID:', sellerId);
 
-        // ── Configuración desde ml_config.json ──
-        const FULL_ITEM_IDS = new Set(cfg.full_item_ids || ['MLA864272312', 'MLA2686396878']);
         const SNAPSHOT_DATE = cfg.snapshot_date || '2026-02-19';
+        const OPERATIONS_DATE_FROM = clampDateToLast60Days(SNAPSHOT_DATE);
+        const TODAY_DATE = new Date().toISOString().split('T')[0];
 
-        // 1. Obtener órdenes de venta (solo posteriores al snapshot)
-        console.log(`[ML Sync] Buscando órdenes Full desde ${SNAPSHOT_DATE}...`);
+        // 1. Obtener todas las órdenes pagadas desde el snapshot
+        console.log(`[ML Sync] Buscando órdenes pagadas desde ${SNAPSHOT_DATE}...`);
         const dateFrom = `${SNAPSHOT_DATE}T00:00:00.000-03:00`;
-        const ordersRes = await mlGet(
-            `/orders/search?seller=${sellerId}&order.status=paid&sort=date_desc&limit=50&order.date_created.from=${encodeURIComponent(dateFrom)}`,
-            token
-        );
-        const orders = ordersRes.results || [];
-        console.log(`[ML Sync] Órdenes encontradas: ${orders.length}`);
 
-        if (orders.length === 0) {
-            cfg.last_sync = new Date().toISOString();
-            saveMlConfig(cfg);
-            return res.json({ success: true, newSales: 0, sales: [], message: 'No hay ventas nuevas desde el último snapshot.' });
+        let allOrders = [];
+        let offset = 0;
+        const limit = 50;
+        let hasMore = true;
+
+        while (hasMore) {
+            const ordersRes = await mlGet(
+                `/orders/search?seller=${sellerId}&order.status=paid&sort=date_desc&limit=${limit}&offset=${offset}&order.date_created.from=${encodeURIComponent(dateFrom)}`,
+                token
+            );
+            const orders = ordersRes.results || [];
+            allOrders = allOrders.concat(orders);
+            const total = ordersRes.paging?.total || 0;
+            offset += limit;
+            hasMore = offset < total && orders.length > 0;
+            if (offset > 500) break;
         }
+
+        console.log(`[ML Sync] Órdenes pagadas encontradas: ${allOrders.length}`);
 
         // Leer datos actuales para desduplicar
         const currentData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
         const existingOpNumbers = new Set(currentData.sales.map(s => String(s.opNumber).trim()));
+        const existingInboundOperationIds = new Set(
+            (currentData.stockEntries || [])
+                .flatMap(entry => Array.isArray(entry.mlOperationIds) ? entry.mlOperationIds : [entry.mlOperationId])
+                .filter(Boolean)
+                .map(id => String(id).trim())
+        );
+
+        // Cache de logistic_type por item ID (persiste en ml_config.json)
+        // Evita consultar /items/{id} repetidamente para el mismo item
+        const fulfillmentCache = cfg.fulfillment_cache || {};
+        let cacheUpdated = false;
+        const itemCache = {};
+
+        async function getItem(itemId) {
+            if (!itemId) return null;
+            if (itemCache[itemId]) return itemCache[itemId];
+            const item = await mlGet(`/items/${itemId}`, token);
+            itemCache[itemId] = item;
+            return item;
+        }
+
+        // Función para verificar si un item es Full (fulfillment)
+        async function isFullItem(itemId) {
+            if (!itemId) return false;
+            if (fulfillmentCache[itemId] !== undefined) {
+                return fulfillmentCache[itemId];
+            }
+            try {
+                const item = await getItem(itemId);
+                const logisticType = item.shipping?.logistic_type || '';
+                const isFull = logisticType === 'fulfillment';
+                fulfillmentCache[itemId] = isFull;
+                cacheUpdated = true;
+                console.log(`[ML Sync]   📦 Item ${itemId}: logistic_type="${logisticType}" → ${isFull ? 'FULL ✅' : 'NO Full ❌'}`);
+                return isFull;
+            } catch (e) {
+                console.warn(`[ML Sync]   ⚠️ No se pudo verificar item ${itemId}: ${e.message}`);
+                return false;
+            }
+        }
 
         let allNewSales = [];
         let skippedNonFull = 0;
 
-        for (const order of orders) {
+        for (const order of allOrders) {
             const orderId = String(order.id);
             if (existingOpNumbers.has(orderId)) continue;
 
@@ -269,33 +346,22 @@ app.post('/api/ml/sync', async (req, res) => {
                 ? order.date_closed.split('T')[0]
                 : order.date_created?.split('T')[0];
 
-            // Solo importar ventas después del snapshot
             if (orderDate < SNAPSHOT_DATE) continue;
 
             for (const orderItem of (order.order_items || [])) {
                 const itemId = orderItem.item?.id;
 
-                // ── Filtro: solo items Full ──
-                if (!FULL_ITEM_IDS.has(itemId)) {
+                // ── Filtro dinámico: solo items con logistic_type=fulfillment ──
+                const isFull = await isFullItem(itemId);
+                if (!isFull) {
                     skippedNonFull++;
+                    console.log(`[ML Sync]   ⏭️ Omitida (no Full): ${orderItem.item?.title} - Item ${itemId}`);
                     continue;
                 }
 
                 const productName = orderItem.item?.title || 'Producto desconocido';
 
-                // Extraer talle y color
-                let talle = 'Único';
-                let color = 'Único';
-                const variation = orderItem.item?.variation_attributes || [];
-                for (const attr of variation) {
-                    const name = attr.name?.toLowerCase() || '';
-                    if (name.includes('talle') || name.includes('talla') || name.includes('size')) {
-                        talle = attr.value_name || talle;
-                    }
-                    if (name.includes('color')) {
-                        color = attr.value_name || color;
-                    }
-                }
+                const { talle, color } = extractVariantAttributes(orderItem.item?.variation_attributes || []);
 
                 const sale = {
                     id: `ml-${orderId}-${orderItem.item?.variation_id || 'nv'}`,
@@ -305,37 +371,148 @@ app.post('/api/ml/sync', async (req, res) => {
                     opNumber: orderId,
                     fechaVenta: orderDate,
                     cantidad: orderItem.quantity || 1,
-                    source: 'mercadolibre'
+                    source: 'mercadolibre',
+                    mlItemId: itemId || null
                 };
                 allNewSales.push(sale);
+                console.log(`[ML Sync]   ✅ Venta Full: ${productName} (${talle}/${color}) - Orden ${orderId}`);
             }
             existingOpNumbers.add(orderId);
         }
 
-        // 4. Guardar las ventas nuevas en data.json y actualizar lista de productos
-        if (allNewSales.length > 0) {
-            currentData.sales = [...allNewSales, ...currentData.sales];
+        // 3. Importar ingresos Full (inbound_reception) para los items configurados
+        let allNewEntries = [];
+        const fullItemIds = Array.isArray(cfg.full_item_ids) ? cfg.full_item_ids.filter(Boolean) : [];
+
+        if (fullItemIds.length > 0) {
+            console.log(`[ML Sync] Buscando ingresos Full desde ${OPERATIONS_DATE_FROM} hasta ${TODAY_DATE}...`);
+
+            const inventoryMap = new Map();
+
+            for (const itemId of fullItemIds) {
+                try {
+                    const item = await getItem(itemId);
+                    if (!item) continue;
+
+                    const baseProduct = item.title || itemId;
+
+                    if (Array.isArray(item.variations) && item.variations.length > 0) {
+                        for (const variation of item.variations) {
+                            if (!variation.inventory_id) continue;
+                            const { talle, color } = extractVariantAttributes(variation.attribute_combinations || variation.attributes || []);
+                            inventoryMap.set(variation.inventory_id, {
+                                itemId,
+                                product: baseProduct,
+                                talle,
+                                color
+                            });
+                        }
+                    } else if (item.inventory_id) {
+                        inventoryMap.set(item.inventory_id, {
+                            itemId,
+                            product: baseProduct,
+                            talle: 'Unico',
+                            color: 'Unico'
+                        });
+                    }
+                } catch (e) {
+                    console.warn(`[ML Sync]   ⚠️ No se pudo preparar inventory_id para ${itemId}: ${e.message}`);
+                }
+            }
+
+            for (const [inventoryId, inventoryInfo] of inventoryMap.entries()) {
+                try {
+                    let offset = 0;
+                    const limit = 50;
+                    let hasMore = true;
+
+                    while (hasMore) {
+                        const operationsRes = await mlGet(
+                            `/stock/fulfillment/operations/search?seller_id=${sellerId}&inventory_id=${encodeURIComponent(inventoryId)}&type=inbound_reception&date_from=${OPERATIONS_DATE_FROM}&date_to=${TODAY_DATE}&limit=${limit}&offset=${offset}&sort=date_desc`,
+                            token
+                        );
+
+                        const operations = operationsRes.results || [];
+                        for (const operation of operations) {
+                            const operationId = String(operation.id);
+                            if (existingInboundOperationIds.has(operationId)) continue;
+
+                            const quantity = Number(
+                                operation.result?.available_quantity
+                                ?? operation.detail?.available_quantity
+                                ?? operation.result?.total
+                                ?? 0
+                            );
+
+                            if (quantity <= 0) continue;
+
+                            const inboundReference = (operation.external_references || []).find(ref => ref.type === 'inbound_id')?.value || null;
+                            const entryDate = (operation.date_created || '').split('T')[0] || TODAY_DATE;
+
+                            allNewEntries.push({
+                                id: `ml-inbound-${operationId}`,
+                                product: inventoryInfo.product,
+                                fechaEnvio: entryDate,
+                                variants: [{
+                                    talle: inventoryInfo.talle,
+                                    color: inventoryInfo.color,
+                                    cantidad: quantity
+                                }],
+                                source: 'mercadolibre',
+                                mlItemId: inventoryInfo.itemId,
+                                mlInventoryId: inventoryId,
+                                mlOperationId: operationId,
+                                mlOperationIds: [operationId],
+                                mlInboundId: inboundReference
+                            });
+                            existingInboundOperationIds.add(operationId);
+
+                            console.log(`[ML Sync]   ✅ Ingreso Full: ${inventoryInfo.product} (${inventoryInfo.talle}/${inventoryInfo.color}) +${quantity} - Op ${operationId}`);
+                        }
+
+                        const total = operationsRes.paging?.total || 0;
+                        offset += limit;
+                        hasMore = offset < total && operations.length > 0;
+                        if (offset > 500) break;
+                    }
+                } catch (e) {
+                    console.warn(`[ML Sync]   ⚠️ No se pudieron consultar ingresos para inventory_id ${inventoryId}: ${e.message}`);
+                }
+            }
+        }
+
+        // 4. Guardar las ventas nuevas en data.json
+        if (allNewSales.length > 0 || allNewEntries.length > 0) {
+            if (allNewSales.length > 0) {
+                currentData.sales = [...allNewSales, ...currentData.sales];
+            }
+            if (allNewEntries.length > 0) {
+                currentData.stockEntries = [...allNewEntries, ...(currentData.stockEntries || [])];
+            }
             const existingProducts = new Set(currentData.products || []);
-            allNewSales.forEach(s => {
-                if (s.product && !existingProducts.has(s.product)) {
-                    existingProducts.add(s.product);
+            [...allNewSales, ...allNewEntries].forEach(record => {
+                if (record.product && !existingProducts.has(record.product)) {
+                    existingProducts.add(record.product);
                 }
             });
             currentData.products = [...existingProducts];
             fs.writeFileSync(DATA_FILE, JSON.stringify(currentData, null, 2));
         }
 
-        // 5. Actualizar last_sync
+        // 5. Actualizar config: last_sync + cache de fulfillment
         cfg.last_sync = new Date().toISOString();
+        cfg.fulfillment_cache = fulfillmentCache;
         saveMlConfig(cfg);
 
-        console.log(`[ML Sync] ✅ Sync completo. Ventas Full nuevas: ${allNewSales.length}, omitidas (no Full): ${skippedNonFull}`);
+        console.log(`[ML Sync] ✅ Sync completo. Ventas Full nuevas: ${allNewSales.length}, ingresos Full nuevos: ${allNewEntries.length}, omitidas (no Full): ${skippedNonFull}`);
         res.json({
             success: true,
             newSales: allNewSales.length,
+            newEntries: allNewEntries.length,
             skippedNonFull,
             sales: allNewSales,
-            message: `Sync completado. ${allNewSales.length} venta(s) Full importada(s).${skippedNonFull > 0 ? ` (${skippedNonFull} no-Full omitidas)` : ''}`
+            entries: allNewEntries,
+            message: `Sync completado. ${allNewSales.length} venta(s) Full y ${allNewEntries.length} ingreso(s) Full importado(s).${skippedNonFull > 0 ? ` (${skippedNonFull} no-Full omitidas)` : ''}`
         });
 
     } catch (e) {
@@ -344,6 +521,85 @@ app.post('/api/ml/sync', async (req, res) => {
     }
 });
 
+
+// ─── ML Debug Orders ─────────────────────────────────────────────────────────
+
+app.get('/api/ml/debug-orders', async (req, res) => {
+    try {
+        let cfg = readMlConfig();
+        if (!cfg.access_token) {
+            return res.status(400).json({ error: 'No hay token.' });
+        }
+        cfg = await refreshTokenIfNeeded(cfg);
+        const token = cfg.access_token;
+        const me = await mlGet('/users/me', token);
+        const sellerId = me.id;
+
+        const FULL_ITEM_IDS = new Set(cfg.full_item_ids || []);
+        const SNAPSHOT_DATE = cfg.snapshot_date || '2026-02-19';
+        const dateFrom = `${SNAPSHOT_DATE}T00:00:00.000-03:00`;
+
+        // Leer duplicados existentes
+        const currentData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const existingOpNumbers = new Set(currentData.sales.map(s => String(s.opNumber).trim()));
+
+        // Buscar con TODOS los estados (no solo paid)
+        const allOrdersRes = await mlGet(
+            `/orders/search?seller=${sellerId}&sort=date_desc&limit=50&order.date_created.from=${encodeURIComponent(dateFrom)}`,
+            token
+        );
+        const allOrders = allOrdersRes.results || [];
+
+        // Buscar solo paid
+        const paidOrdersRes = await mlGet(
+            `/orders/search?seller=${sellerId}&order.status=paid&sort=date_desc&limit=50&order.date_created.from=${encodeURIComponent(dateFrom)}`,
+            token
+        );
+        const paidOrders = paidOrdersRes.results || [];
+
+        const debugInfo = allOrders.map(order => {
+            const orderId = String(order.id);
+            const items = (order.order_items || []).map(oi => ({
+                itemId: oi.item?.id,
+                title: oi.item?.title?.substring(0, 60),
+                quantity: oi.quantity,
+                isInFullList: FULL_ITEM_IDS.has(oi.item?.id),
+                variation_attributes: oi.item?.variation_attributes
+            }));
+
+            const orderDate = order.date_closed
+                ? order.date_closed.split('T')[0]
+                : order.date_created?.split('T')[0];
+
+            return {
+                orderId,
+                status: order.status,
+                tags: order.tags,
+                shipping: order.shipping,
+                date_created: order.date_created,
+                date_closed: order.date_closed,
+                orderDate,
+                isAlreadyImported: existingOpNumbers.has(orderId),
+                isBeforeSnapshot: orderDate < SNAPSHOT_DATE,
+                items
+            };
+        });
+
+        res.json({
+            sellerId,
+            snapshotDate: SNAPSHOT_DATE,
+            fullItemIds: [...FULL_ITEM_IDS],
+            totalAllOrders: allOrders.length,
+            totalPaidOrders: paidOrders.length,
+            existingSalesCount: currentData.sales.length,
+            orders: debugInfo
+        });
+
+    } catch (e) {
+        console.error('[ML Debug] Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // ─── ML Stock (Live from API) ─────────────────────────────────────────────────
 
