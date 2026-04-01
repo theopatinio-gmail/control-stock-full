@@ -11,31 +11,48 @@
 
 export const PRODUCT_CATALOG = [
     {
-        canonical: 'Pantalon de jean palazzo',
+        canonical: 'Pantalón Palazzo De Jean Mujer Tiro Alto Ancho',
         aliases: [
+            'Pantalon de jean palazzo',
             'Pantalón De Jean Palazzo',
-            'Pantalón De Jean Palazzo ',
-            'Pantalón Palazzo De Jean Mujer Tiro Alto Ancho',
-            'Pantalón Palazzo Jeans Elastizado  Negro Frika Mujer',
+            'Pantalón Palazzo Jeans Elastizado Negro Frika Mujer',
         ],
         colors: ['Azul', 'Negro'],
         sizes: ['S', 'M', 'L', 'XL', 'XXL']
     },
     {
-        canonical: 'Bermuda Lirio Gabardina',
+        canonical: 'Pantalón Palazzo Jean Mujer Cintura Elastizada Frika',
         aliases: [
+            'Pantalon de jean palazzo elastizado',
+        ],
+        colors: ['Azul', 'Negro'],
+        sizes: ['S', 'M', 'L', 'XL', 'XXL']
+    },
+    {
+        canonical: 'Bermuda Mujer Gabardina Cintura Elastizada Mod. Lirio Frika',
+        aliases: [
+            'Bermuda Lirio Gabardina',
             'Bermuda De Gabardina Mod. Lirio Frika Ropa Linda',
-            'Bermuda Mujer Gabardina Cintura Elastizada Mod. Lirio Frika',
         ],
         colors: ['Tostado', 'Khaki'],
         sizes: ['S', 'M', 'L', 'XL', 'XXL']
     },
     {
-        canonical: 'Conjunto de Morley',
+        canonical: 'Conjunto Morley Mujer Pantalon Recto Remera Oversize Frika',
         aliases: [
+            'Conjunto de Morley',
             'Conjunto De Morley Mujer Pantalón Recto. Oversize',
         ],
         colors: ['Negro', 'Castaña'],
+        sizes: ['S', 'M', 'L', 'XL', 'XXL']
+    },
+    {
+        canonical: 'Jean Oxford Mujer Tiro Alto Elastizado Pantalón Frika',
+        aliases: [
+            'Pantalon de jean oxford',
+            'pantalon de jean oxford mujer elastizado',
+        ],
+        colors: ['Azul'],
         sizes: ['S', 'M', 'L', 'XL', 'XXL']
     }
 ];

@@ -1,23 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import './index.css'
 import Dashboard from './components/Dashboard'
-import StockEntryForm from './components/StockEntryForm'
-import SalesForm from './components/SalesForm'
+import ManualMovementForm from './components/ManualMovementForm'
 import MovementsHistory from './components/MovementsHistory'
 import MLConnectionPanel from './components/MLConnectionPanel'
 import { INITIAL_STATE } from './constants/initialState'
-import { calculateStock, isDuplicateOp } from './utils/stockLogic'
-
 const SAVE_DEBOUNCE_MS = 600
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [data, setData] = useState(INITIAL_STATE)
   const [loading, setLoading] = useState(true)
-  const [saveStatus, setSaveStatus] = useState(null) // 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState(null)
   const saveTimeoutRef = useRef(null)
 
-  // Load data from API on mount (also used after ML sync)
   const loadData = () => {
     fetch('/api/data')
       .then(res => {
@@ -25,11 +21,19 @@ function App() {
         return res.json();
       })
       .then(json => {
-        setData(json)
+        setData({
+          ...INITIAL_STATE,
+          ...json,
+          manualMovements: Array.isArray(json.manualMovements) ? json.manualMovements : [],
+          sales: Array.isArray(json.sales) ? json.sales : [],
+          products: Array.isArray(json.products) ? json.products : INITIAL_STATE.products,
+          mlStock: Array.isArray(json.mlStock) ? json.mlStock : [],
+          mlStockFetchedAt: json.mlStockFetchedAt ?? null
+        })
         setLoading(false)
       })
       .catch(err => {
-        console.error('App: Error loading data:', err)
+        console.error('App: Error loading:', err)
         setSaveStatus('error')
         setLoading(false)
       })
@@ -37,10 +41,8 @@ function App() {
 
   useEffect(() => { loadData() }, [])
 
-  // Save data to API with debounce (evita múltiples guardados seguidos)
   useEffect(() => {
     if (loading) return
-
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 
     saveTimeoutRef.current = setTimeout(() => {
@@ -62,45 +64,79 @@ function App() {
         .finally(() => { saveTimeoutRef.current = null })
     }, SAVE_DEBOUNCE_MS)
 
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    }
+    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }
   }, [data, loading])
 
-  const addStockEntry = (entry) => {
+  const addManualMovement = (movement) => {
     setData(prev => ({
       ...prev,
-      stockEntries: [entry, ...prev.stockEntries],
-      products: prev.products.includes(entry.product)
-        ? prev.products
-        : [...prev.products, entry.product]
+      manualMovements: [movement, ...(prev.manualMovements || [])]
     }))
+    setActiveTab('dashboard') // Redirect to dashboard to see the updated stock
   }
 
-  const addSale = (sale) => {
-    if (isDuplicateOp(data.sales, sale.opNumber)) {
-      alert('Error: El Nro de Operación ya existe.')
+  const convertSaleToManualMovement = (sale) => {
+    if (!sale) return false
+
+    const opNumber = String(sale.opNumber || '').trim()
+    const saleOriginId = sale.id || `ml-${opNumber}`
+
+    const movement = {
+      id: `ml-manual-${saleOriginId}`,
+      opNumber,
+      product: sale.product,
+      talle: sale.talle,
+      color: sale.color,
+      type: 'egreso',
+      quantity: Number(sale.cantidad || 1),
+      date: sale.fechaVenta || new Date().toISOString().split('T')[0],
+      source: 'mercadolibre',
+      originSaleId: sale.id || null,
+      originSaleOpNumber: opNumber || null,
+      origin: 'ml-sale'
+    }
+
+    let added = false
+    setData(prev => {
+      const alreadyConverted = (prev.manualMovements || []).some(m => m.originSaleId === sale.id)
+      if (alreadyConverted) {
+        return prev
+      }
+      added = true
+      return {
+        ...prev,
+        manualMovements: [movement, ...(prev.manualMovements || [])]
+      }
+    })
+
+    if (!added) {
+      alert('Ese movimiento ya fue cargado desde esa venta de ML.')
       return false
     }
-    setData(prev => ({
-      ...prev,
-      sales: [sale, ...prev.sales]
-    }))
+
+    setActiveTab('dashboard')
     return true
   }
 
-  const currentStock = calculateStock(data.stockEntries, data.sales)
+  const addProduct = (productName) => {
+    if (!data.products.includes(productName)) {
+      setData(prev => ({
+        ...prev,
+        products: [...(prev.products || []), productName]
+      }))
+    }
+  }
 
   return (
     <div className="container animate-fade-in">
       <header>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
-            <h1 style={{ color: 'var(--primary-violet)', fontSize: '2.5rem', marginBottom: '0.5rem' }}>
-              FRIKA - Control Stock Full
+            <h1 style={{ color: 'var(--primary-violet)', fontSize: '2.5rem', marginBottom: '0.2rem' }}>
+              FRIKA FULL
             </h1>
             <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
-              Gestión inteligente mercadería en depósitos de Mercado Libre.
+              Gestión de Stock Manual + Sync Ventas ML
             </p>
           </div>
           {saveStatus && (
@@ -115,39 +151,21 @@ function App() {
             </span>
           )}
         </div>
-        <div style={{ marginBottom: '2rem' }} />
+        <div style={{ marginBottom: '1.5rem' }} />
       </header>
 
       <nav>
-        <button
-          className={activeTab === 'dashboard' ? 'active' : ''}
-          onClick={() => setActiveTab('dashboard')}
-        >
-          Resumen de Stock
+        <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
+          📊 Stock Manual
         </button>
-        <button
-          className={activeTab === 'entry' ? 'active' : ''}
-          onClick={() => setActiveTab('entry')}
-        >
-          Ingresar Stock
+        <button className={activeTab === 'form' ? 'active' : ''} onClick={() => setActiveTab('form')}>
+          ➕ Cargar Movimiento
         </button>
-        <button
-          className={activeTab === 'sales' ? 'active' : ''}
-          onClick={() => setActiveTab('sales')}
-        >
-          Bajar Stock (Ventas)
+        <button className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')}>
+          📋 Historial Ventas/Movimientos
         </button>
-        <button
-          className={activeTab === 'history' ? 'active' : ''}
-          onClick={() => setActiveTab('history')}
-        >
-          Historial
-        </button>
-        <button
-          className={activeTab === 'ml' ? 'active' : ''}
-          onClick={() => setActiveTab('ml')}
-        >
-          🔄 Sync ML
+        <button className={activeTab === 'ml' ? 'active' : ''} onClick={() => setActiveTab('ml')}>
+          🔄 Sincronizar ML
         </button>
       </nav>
 
@@ -156,32 +174,32 @@ function App() {
           <div style={{ textAlign: 'center', padding: '2rem' }}>Cargando datos...</div>
         ) : (
           <>
-            {activeTab === 'dashboard' && <Dashboard stock={currentStock} />}
-            {activeTab === 'entry' && (
-              <StockEntryForm
-                onSave={addStockEntry}
-                existingProducts={data.products}
+            {activeTab === 'dashboard' && (
+              <Dashboard 
+                manualMovements={data.manualMovements || []} 
+                products={data.products || []} 
               />
             )}
-            {activeTab === 'sales' && (
-              <SalesForm
-                onSave={addSale}
-                stock={currentStock}
-                existingProducts={data.products}
+            {activeTab === 'form' && (
+              <ManualMovementForm 
+                products={data.products || []} 
+                onAddMovement={addManualMovement}
+                onAddProduct={addProduct}
               />
             )}
             {activeTab === 'history' && (
-              <MovementsHistory
-                stockEntries={data.stockEntries}
-                sales={data.sales}
+              <MovementsHistory 
+                sales={data.sales || []} 
+                manualMovements={data.manualMovements || []}
+                onConvertSaleToManualMovement={convertSaleToManualMovement}
               />
             )}
             {activeTab === 'ml' && (
-              <MLConnectionPanel
+              <MLConnectionPanel 
                 onSyncComplete={() => {
                   setLoading(true)
                   loadData()
-                }}
+                }} 
               />
             )}
           </>

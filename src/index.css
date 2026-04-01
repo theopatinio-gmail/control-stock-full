@@ -128,15 +128,18 @@ nav {
   padding-bottom: 1rem;
 }
 
-nav a {
+nav button {
   color: var(--text-muted);
   text-decoration: none;
   font-weight: 500;
   padding: 0.5rem 1rem;
   border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
 }
 
-nav a.active {
+nav button.active {
   color: white;
   background-color: var(--primary-violet);
 }
@@ -686,4 +689,97 @@ nav a.active {
   .stock-matrix-wrapper {
     padding: 0.5rem 0.75rem 0.75rem;
   }
+}
+
+/* ─── Live Mode Styles ─── */
+
+.dashboard-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mode-toggle {
+  display: flex;
+  background: rgba(30, 41, 59, 0.5);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.toggle-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.toggle-btn.active {
+  background: var(--primary-violet);
+  color: white;
+  box-shadow: 0 2px 8px rgba(109, 40, 217, 0.3);
+}
+
+.refresh-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(109, 40, 217, 0.1);
+  color: var(--primary-violet);
+  border: 1px solid rgba(109, 40, 217, 0.3);
+  border-radius: 10px;
+  font-size: 1.2rem;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: var(--primary-violet);
+  color: white;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(109, 40, 217, 0.1);
+  border-left-color: var(--primary-violet);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--accent-red);
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

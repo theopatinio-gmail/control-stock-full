@@ -49,7 +49,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
             if (d.redirect_uri) setCustomRedirect(d.redirect_uri)
             if (d.full_item_ids?.length) setFullItemIds(d.full_item_ids.join(', '))
             else setFullItemIds('MLA864272312, MLA2686396878')
-            setSnapshotDate(d.snapshot_date || '2026-02-19')
+            setSnapshotDate(d.full_movements_start_date || d.snapshot_date || '2025-07-01')
         } catch (e) {
             console.error('Error fetching ML status:', e)
         }
@@ -282,7 +282,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                         onClick={() => setShowAdvanced(!showAdvanced)}
                         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}
                     >
-                        {showAdvanced ? '▼' : '▶'} Configuración avanzada (IDs Full, fecha snapshot)
+                        {showAdvanced ? '▼' : '▶'} Configuración avanzada (IDs Full, corte Full fijo)
                     </button>
                     {showAdvanced && (
                         <form onSubmit={async (e) => {
@@ -293,7 +293,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                 const r = await fetch('/api/ml/config', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ full_item_ids: ids, snapshot_date: snapshotDate.trim() || null })
+                                    body: JSON.stringify({ full_item_ids: ids })
                                 })
                                 const d = await r.json()
                                 if (d.success) {
@@ -317,14 +317,18 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
-                                    Fecha snapshot (solo ventas posteriores)
+                                    Corte Full histórico
                                 </label>
                                 <input
                                     type="date"
                                     value={snapshotDate}
                                     onChange={e => setSnapshotDate(e.target.value)}
+                                    disabled
                                     style={{ padding: '0.5rem', borderRadius: 6, border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem' }}
                                 />
+                                <div style={{ marginTop: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    La sincronización Full toma como inicio fijo el 01/07/2025.
+                                </div>
                             </div>
                             <button type="submit" disabled={savingAdvanced} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--primary-violet)', color: '#fff', fontSize: '0.9rem' }}>
                                 {savingAdvanced ? 'Guardando...' : 'Guardar configuración avanzada'}

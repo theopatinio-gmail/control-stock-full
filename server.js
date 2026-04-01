@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { normalizeProductName } from './src/utils/productMapping.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,9 +16,21 @@ const ML_CONFIG_FILE = path.join(__dirname, 'ml_config.json');
 app.use(cors());
 app.use(express.json());
 
-// ─── Data File Init ───────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Data File Init Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-const INITIAL_DATA = { stockEntries: [], sales: [], products: [] };
+const INITIAL_DATA = { 
+    manualMovements: [], 
+    sales: [], 
+    products: [
+        'PantalÃƒÂ³n Palazzo De Jean Mujer Tiro Alto Ancho',
+        'PantalÃƒÂ³n Palazzo Jean Mujer Cintura Elastizada Frika',
+        'Bermuda Mujer Gabardina Cintura Elastizada Mod. Lirio Frika',
+        'Jean Oxford Mujer Tiro Alto Elastizado PantalÃƒÂ³n Frika',
+        'Conjunto Morley Mujer Pantalon Recto Remera Oversize Frika'
+    ], 
+    mlStock: [], 
+    mlStockFetchedAt: null 
+};
 if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_DATA, null, 2));
 }
@@ -32,8 +45,8 @@ const INITIAL_ML_CONFIG = {
     redirect_uri: 'https://127.0.0.1',
     // IDs de productos Full a sincronizar (agregar los que uses)
     full_item_ids: ['MLA864272312', 'MLA2686396878'],
-    // Solo importar ventas posteriores a esta fecha (formato YYYY-MM-DD)
-    snapshot_date: '2026-02-19'
+    // Corte histÃƒÂ³rico para la sync Full
+    snapshot_date: '2025-07-01'
 };
 if (!fs.existsSync(ML_CONFIG_FILE)) {
     fs.writeFileSync(ML_CONFIG_FILE, JSON.stringify(INITIAL_ML_CONFIG, null, 2));
@@ -46,7 +59,9 @@ function saveMlConfig(cfg) {
     fs.writeFileSync(ML_CONFIG_FILE, JSON.stringify(cfg, null, 2));
 }
 
-// ─── Data endpoints ───────────────────────────────────────────────────────────
+const FULL_MOVEMENTS_START_DATE = '2025-07-01';
+
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Data endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 app.get('/api/data', (req, res) => {
     console.log('[GET] Reading data.json...');
@@ -71,7 +86,7 @@ app.post('/api/data', (req, res) => {
     }
 });
 
-// ─── ML Config endpoints ──────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Config endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 // GET ml config (no devuelve secrets)
 app.get('/api/ml/status', (req, res) => {
@@ -85,14 +100,15 @@ app.get('/api/ml/status', (req, res) => {
             last_sync: cfg.last_sync,
             redirect_uri: cfg.redirect_uri || 'https://127.0.0.1',
             full_item_ids: cfg.full_item_ids || [],
-            snapshot_date: cfg.snapshot_date || null
+            snapshot_date: FULL_MOVEMENTS_START_DATE,
+            full_movements_start_date: FULL_MOVEMENTS_START_DATE
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// POST guardar credenciales y configuración de sync
+// POST guardar credenciales y configuraciÃƒÂ³n de sync
 app.post('/api/ml/config', (req, res) => {
     try {
         const { client_id, client_secret, redirect_uri, full_item_ids, snapshot_date } = req.body;
@@ -109,14 +125,14 @@ app.post('/api/ml/config', (req, res) => {
         }
 
         saveMlConfig(cfg);
-        console.log('[ML] Configuración actualizada:', { client_id: cfg.client_id, redirect_uri: cfg.redirect_uri });
+        console.log('[ML] ConfiguraciÃƒÂ³n actualizada:', { client_id: cfg.client_id, redirect_uri: cfg.redirect_uri });
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// GET url de autorización
+// GET url de autorizaciÃƒÂ³n
 app.get('/api/ml/authorize-url', (req, res) => {
     try {
         const cfg = readMlConfig();
@@ -124,7 +140,7 @@ app.get('/api/ml/authorize-url', (req, res) => {
             return res.status(400).json({ error: 'No hay client_id configurado' });
         }
         const redirectUri = cfg.redirect_uri || 'https://127.0.0.1';
-        // Agregamos scopes explícitos para tener permisos de lectura, escritura y renovación de token
+        // Agregamos scopes explÃƒÂ­citos para tener permisos de lectura, escritura y renovaciÃƒÂ³n de token
         const scopes = 'offline_access read write';
         const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${cfg.client_id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
         res.json({ url: authUrl });
@@ -141,7 +157,7 @@ app.post('/api/ml/exchange-token', async (req, res) => {
 
         const cfg = readMlConfig();
         if (!cfg.client_id || !cfg.client_secret) {
-            return res.status(400).json({ error: 'Configurá las credenciales primero' });
+            return res.status(400).json({ error: 'ConfigurÃƒÂ¡ las credenciales primero' });
         }
 
         const params = {
@@ -151,7 +167,7 @@ app.post('/api/ml/exchange-token', async (req, res) => {
             code: code,
             redirect_uri: cfg.redirect_uri || 'https://127.0.0.1'
         };
-        console.log('[ML Exchange] Enviando parámetros:', { ...params, client_secret: '***' });
+        console.log('[ML Exchange] Enviando parÃƒÂ¡metros:', { ...params, client_secret: '***' });
 
         const body = new URLSearchParams(params);
 
@@ -179,7 +195,7 @@ app.post('/api/ml/exchange-token', async (req, res) => {
     }
 });
 
-// ─── ML Sync ──────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Sync Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 async function mlGet(path, token) {
     const url = `https://api.mercadolibre.com${path}`;
@@ -189,7 +205,7 @@ async function mlGet(path, token) {
     return data;
 }
 
-// Refresca el token si venció
+// Refresca el token si venciÃƒÂ³
 async function refreshTokenIfNeeded(cfg) {
     if (!cfg.refresh_token || !cfg.client_id || !cfg.client_secret) return cfg;
     try {
@@ -209,7 +225,7 @@ async function refreshTokenIfNeeded(cfg) {
             cfg.access_token = d.access_token;
             cfg.refresh_token = d.refresh_token;
             saveMlConfig(cfg);
-            console.log('[ML] Token refrescado automáticamente.');
+            console.log('[ML] Token refrescado automÃƒÂ¡ticamente.');
         }
     } catch (e) {
         console.warn('[ML] No se pudo refrescar token:', e.message);
@@ -217,16 +233,24 @@ async function refreshTokenIfNeeded(cfg) {
     return cfg;
 }
 
-function clampDateToLast60Days(dateStr) {
-    const now = new Date();
-    const minAllowed = new Date(now);
-    minAllowed.setDate(minAllowed.getDate() - 59);
+function addDaysToDateStr(dateStr, days) {
+    const d = new Date(`${dateStr}T00:00:00.000-03:00`);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+}
 
-    const minStr = minAllowed.toISOString().split('T')[0];
-    if (!dateStr || dateStr < minStr) {
-        return minStr;
+function getDateWindows(startDate, endDate, maxWindowDays = 60) {
+    const windows = [];
+    let cursor = startDate;
+
+    while (cursor <= endDate) {
+        const windowEnd = addDaysToDateStr(cursor, maxWindowDays - 1);
+        const boundedEnd = windowEnd < endDate ? windowEnd : endDate;
+        windows.push({ from: cursor, to: boundedEnd });
+        cursor = addDaysToDateStr(boundedEnd, 1);
     }
-    return dateStr;
+
+    return windows;
 }
 
 function extractVariantAttributes(attributes = []) {
@@ -250,7 +274,7 @@ app.post('/api/ml/sync', async (req, res) => {
     try {
         let cfg = readMlConfig();
         if (!cfg.access_token) {
-            return res.status(400).json({ error: 'No hay token. Autorizá la app primero.' });
+            return res.status(400).json({ error: 'No hay token. AutorizÃƒÂ¡ la app primero.' });
         }
 
         // Intentar refrescar token
@@ -261,14 +285,14 @@ app.post('/api/ml/sync', async (req, res) => {
         console.log('[ML Sync] Validando token con /users/me...');
         const me = await mlGet('/users/me', token);
         const sellerId = me.id;
-        console.log('[ML Sync] Token válido. User:', me.nickname, 'ID:', sellerId);
+        console.log('[ML Sync] Token vÃƒÂ¡lido. User:', me.nickname, 'ID:', sellerId);
 
-        const SNAPSHOT_DATE = cfg.snapshot_date || '2026-02-19';
-        const OPERATIONS_DATE_FROM = clampDateToLast60Days(SNAPSHOT_DATE);
+        const SNAPSHOT_DATE = FULL_MOVEMENTS_START_DATE;
+        const OPERATIONS_DATE_FROM = FULL_MOVEMENTS_START_DATE;
         const TODAY_DATE = new Date().toISOString().split('T')[0];
 
-        // 1. Obtener todas las órdenes pagadas desde el snapshot
-        console.log(`[ML Sync] Buscando órdenes pagadas desde ${SNAPSHOT_DATE}...`);
+        // 1. Obtener todas las ÃƒÂ³rdenes pagadas desde el snapshot
+        console.log(`[ML Sync] Buscando ÃƒÂ³rdenes pagadas desde ${SNAPSHOT_DATE}...`);
         const dateFrom = `${SNAPSHOT_DATE}T00:00:00.000-03:00`;
 
         let allOrders = [];
@@ -286,10 +310,10 @@ app.post('/api/ml/sync', async (req, res) => {
             const total = ordersRes.paging?.total || 0;
             offset += limit;
             hasMore = offset < total && orders.length > 0;
-            if (offset > 500) break;
+            if (offset > 10000) break; // Increased from 500 to 10000
         }
 
-        console.log(`[ML Sync] Órdenes pagadas encontradas: ${allOrders.length}`);
+        console.log(`[ML Sync] Ãƒâ€œrdenes pagadas encontradas: ${allOrders.length}`);
 
         // Leer datos actuales para desduplicar
         const currentData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
@@ -315,7 +339,7 @@ app.post('/api/ml/sync', async (req, res) => {
             return item;
         }
 
-        // Función para verificar si un item es Full (fulfillment)
+        // FunciÃƒÂ³n para verificar si un item es Full (fulfillment)
         async function isFullItem(itemId) {
             if (!itemId) return false;
             if (fulfillmentCache[itemId] !== undefined) {
@@ -327,10 +351,10 @@ app.post('/api/ml/sync', async (req, res) => {
                 const isFull = logisticType === 'fulfillment';
                 fulfillmentCache[itemId] = isFull;
                 cacheUpdated = true;
-                console.log(`[ML Sync]   📦 Item ${itemId}: logistic_type="${logisticType}" → ${isFull ? 'FULL ✅' : 'NO Full ❌'}`);
+                console.log(`[ML Sync]   Ã°Å¸â€œÂ¦ Item ${itemId}: logistic_type="${logisticType}" Ã¢â€ â€™ ${isFull ? 'FULL Ã¢Å“â€¦' : 'NO Full Ã¢ÂÅ’'}`);
                 return isFull;
             } catch (e) {
-                console.warn(`[ML Sync]   ⚠️ No se pudo verificar item ${itemId}: ${e.message}`);
+                console.warn(`[ML Sync]   Ã¢Å¡Â Ã¯Â¸Â No se pudo verificar item ${itemId}: ${e.message}`);
                 return false;
             }
         }
@@ -351,15 +375,16 @@ app.post('/api/ml/sync', async (req, res) => {
             for (const orderItem of (order.order_items || [])) {
                 const itemId = orderItem.item?.id;
 
-                // ── Filtro dinámico: solo items con logistic_type=fulfillment ──
+                // Ã¢â€â‚¬Ã¢â€â‚¬ Filtro dinÃƒÂ¡mico: solo items con logistic_type=fulfillment Ã¢â€â‚¬Ã¢â€â‚¬
                 const isFull = await isFullItem(itemId);
                 if (!isFull) {
                     skippedNonFull++;
-                    console.log(`[ML Sync]   ⏭️ Omitida (no Full): ${orderItem.item?.title} - Item ${itemId}`);
+                    console.log(`[ML Sync]   Ã¢ÂÂ­Ã¯Â¸Â Omitida (no Full): ${orderItem.item?.title} - Item ${itemId}`);
                     continue;
                 }
 
-                const productName = orderItem.item?.title || 'Producto desconocido';
+                const rawProductName = orderItem.item?.title || 'Producto desconocido';
+                const productName = normalizeProductName(rawProductName);
 
                 const { talle, color } = extractVariantAttributes(orderItem.item?.variation_attributes || []);
 
@@ -375,12 +400,12 @@ app.post('/api/ml/sync', async (req, res) => {
                     mlItemId: itemId || null
                 };
                 allNewSales.push(sale);
-                console.log(`[ML Sync]   ✅ Venta Full: ${productName} (${talle}/${color}) - Orden ${orderId}`);
+                console.log(`[ML Sync]   Ã¢Å“â€¦ Venta Full: ${productName} (${talle}/${color}) - Orden ${orderId}`);
             }
             existingOpNumbers.add(orderId);
         }
 
-        // 3. Obtener todos los items activos del seller para descubrir ingresos a Full automáticamente
+        // 3. Obtener todos los items activos del seller para descubrir ingresos a Full automÃƒÂ¡ticamente
         let allSellerItems = new Set();
         try {
             console.log(`[ML Sync] Buscando todos los items activos del vendedor ${sellerId}...`);
@@ -398,10 +423,10 @@ app.post('/api/ml/sync', async (req, res) => {
             }
             console.log(`[ML Sync] Se encontraron ${allSellerItems.size} items activos en total.`);
         } catch (e) {
-            console.warn(`[ML Sync]   ⚠️ No se pudieron obtener los items del vendedor: ${e.message}`);
+            console.warn(`[ML Sync]   Ã¢Å¡Â Ã¯Â¸Â No se pudieron obtener los items del vendedor: ${e.message}`);
         }
 
-        // Agregar también los configurados manualmente (por si hay inactivos con stock)
+        // Agregar tambiÃƒÂ©n los configurados manualmente (por si hay inactivos con stock)
         const configuredIds = Array.isArray(cfg.full_item_ids) ? cfg.full_item_ids.filter(Boolean) : [];
         configuredIds.forEach(id => allSellerItems.add(id));
 
@@ -409,7 +434,7 @@ app.post('/api/ml/sync', async (req, res) => {
         let allNewEntries = [];
 
         if (allSellerItems.size > 0) {
-            console.log(`[ML Sync] Verificando cuáles de los ${allSellerItems.size} items son Full y buscando sus ingresos desde ${OPERATIONS_DATE_FROM} hasta ${TODAY_DATE}...`);
+            console.log(`[ML Sync] Verificando cuÃƒÂ¡les de los ${allSellerItems.size} items son Full y buscando sus ingresos desde ${OPERATIONS_DATE_FROM} hasta ${TODAY_DATE}...`);
 
             const inventoryMap = new Map();
 
@@ -443,69 +468,73 @@ app.post('/api/ml/sync', async (req, res) => {
                         });
                     }
                 } catch (e) {
-                    console.warn(`[ML Sync]   ⚠️ No se pudo preparar inventory_id para ${itemId}: ${e.message}`);
+                    console.warn(`[ML Sync]   Ã¢Å¡Â Ã¯Â¸Â No se pudo preparar inventory_id para ${itemId}: ${e.message}`);
                 }
             }
 
             for (const [inventoryId, inventoryInfo] of inventoryMap.entries()) {
                 try {
-                    let offset = 0;
+                    const windows = getDateWindows(OPERATIONS_DATE_FROM, TODAY_DATE);
                     const limit = 50;
-                    let hasMore = true;
 
-                    while (hasMore) {
-                        const operationsRes = await mlGet(
-                            `/stock/fulfillment/operations/search?seller_id=${sellerId}&inventory_id=${encodeURIComponent(inventoryId)}&date_from=${OPERATIONS_DATE_FROM}&date_to=${TODAY_DATE}&limit=${limit}&offset=${offset}`,
-                            token
-                        );
+                    for (const window of windows) {
+                        let offset = 0;
+                        let hasMore = true;
 
-                        const operations = operationsRes.results || [];
-                        for (const operation of operations) {
-                            if (operation.type !== 'INBOUND_RECEPTION') continue;
-
-                            const operationId = String(operation.id);
-                            if (existingInboundOperationIds.has(operationId)) continue;
-
-                            const quantity = Number(
-                                operation.detail?.available_quantity
-                                ?? operation.result?.available_quantity
-                                ?? operation.result?.total
-                                ?? 0
+                        while (hasMore) {
+                            const operationsRes = await mlGet(
+                                `/stock/fulfillment/operations/search?seller_id=${sellerId}&inventory_id=${encodeURIComponent(inventoryId)}&date_from=${window.from}&date_to=${window.to}&limit=${limit}&offset=${offset}`,
+                                token
                             );
 
-                            if (quantity <= 0) continue;
+                            const operations = operationsRes.results || [];
+                            for (const operation of operations) {
+                                if (operation.type !== 'INBOUND_RECEPTION') continue;
 
-                            const inboundReference = (operation.external_references || []).find(ref => ref.type === 'inbound_id')?.value || null;
-                            const entryDate = (operation.date_created || '').split('T')[0] || TODAY_DATE;
+                                const operationId = String(operation.id);
+                                if (existingInboundOperationIds.has(operationId)) continue;
 
-                            allNewEntries.push({
-                                id: `ml-inbound-${operationId}`,
-                                product: inventoryInfo.product,
-                                fechaEnvio: entryDate,
-                                variants: [{
-                                    talle: inventoryInfo.talle,
-                                    color: inventoryInfo.color,
-                                    cantidad: quantity
-                                }],
-                                source: 'mercadolibre',
-                                mlItemId: inventoryInfo.itemId,
-                                mlInventoryId: inventoryId,
-                                mlOperationId: operationId,
-                                mlOperationIds: [operationId],
-                                mlInboundId: inboundReference
-                            });
-                            existingInboundOperationIds.add(operationId);
+                                const quantity = Number(
+                                    operation.detail?.available_quantity
+                                    ?? operation.result?.available_quantity
+                                    ?? operation.result?.total
+                                    ?? 0
+                                );
 
-                            console.log(`[ML Sync]   ✅ Ingreso Full: ${inventoryInfo.product} (${inventoryInfo.talle}/${inventoryInfo.color}) +${quantity} - Op ${operationId}`);
+                                if (quantity <= 0) continue;
+
+                                const inboundReference = (operation.external_references || []).find(ref => ref.type === 'inbound_id')?.value || null;
+                                const entryDate = (operation.date_created || '').split('T')[0] || TODAY_DATE;
+
+                                allNewEntries.push({
+                                    id: `ml-inbound-${operationId}`,
+                                    product: normalizeProductName(inventoryInfo.product),
+                                    fechaEnvio: entryDate,
+                                    variants: [{
+                                        talle: inventoryInfo.talle,
+                                        color: inventoryInfo.color,
+                                        cantidad: quantity
+                                    }],
+                                    source: 'mercadolibre',
+                                    mlItemId: inventoryInfo.itemId,
+                                    mlInventoryId: inventoryId,
+                                    mlOperationId: operationId,
+                                    mlOperationIds: [operationId],
+                                    mlInboundId: inboundReference
+                                });
+                                existingInboundOperationIds.add(operationId);
+
+                                console.log(`[ML Sync] Ingreso Full: ${inventoryInfo.product} (${inventoryInfo.talle}/${inventoryInfo.color}) +${quantity} - Op ${operationId}`);
+                            }
+
+                            const total = operationsRes.paging?.total || 0;
+                            offset += limit;
+                            hasMore = offset < total && operations.length > 0;
+                            if (offset > 500) break;
                         }
-
-                        const total = operationsRes.paging?.total || 0;
-                        offset += limit;
-                        hasMore = offset < total && operations.length > 0;
-                        if (offset > 500) break;
                     }
                 } catch (e) {
-                    console.warn(`[ML Sync]   ⚠️ No se pudieron consultar ingresos para inventory_id ${inventoryId}: ${e.message}`);
+                    console.warn(`[ML Sync] No se pudieron consultar ingresos para inventory_id ${inventoryId}: ${e.message}`);
                 }
             }
         }
@@ -528,12 +557,24 @@ app.post('/api/ml/sync', async (req, res) => {
             fs.writeFileSync(DATA_FILE, JSON.stringify(currentData, null, 2));
         }
 
+        // Persistir stock ML actualizado despuÃƒÂ©s del sync
+        try {
+            const stockRes = await fetch(`http://localhost:${PORT}/api/ml/stock`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (stockRes.ok) {
+                console.log('[ML Sync] Stock de ML actualizado en data.json despuÃƒÂ©s del sync.');
+            }
+        } catch (stockErr) {
+            console.warn('[ML Sync] No se pudo actualizar stock ML post-sync:', stockErr.message);
+        }
+
         // 5. Actualizar config: last_sync + cache de fulfillment
         cfg.last_sync = new Date().toISOString();
         cfg.fulfillment_cache = fulfillmentCache;
         saveMlConfig(cfg);
 
-        console.log(`[ML Sync] ✅ Sync completo. Ventas Full nuevas: ${allNewSales.length}, ingresos Full nuevos: ${allNewEntries.length}, omitidas (no Full): ${skippedNonFull}`);
+        console.log(`[ML Sync] Ã¢Å“â€¦ Sync completo. Ventas Full nuevas: ${allNewSales.length}, ingresos Full nuevos: ${allNewEntries.length}, omitidas (no Full): ${skippedNonFull}`);
         res.json({
             success: true,
             newSales: allNewSales.length,
@@ -551,7 +592,7 @@ app.post('/api/ml/sync', async (req, res) => {
 });
 
 
-// ─── ML Debug Orders ─────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Debug Orders Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 app.get('/api/ml/debug-orders', async (req, res) => {
     try {
@@ -565,7 +606,7 @@ app.get('/api/ml/debug-orders', async (req, res) => {
         const sellerId = me.id;
 
         const FULL_ITEM_IDS = new Set(cfg.full_item_ids || []);
-        const SNAPSHOT_DATE = cfg.snapshot_date || '2026-02-19';
+        const SNAPSHOT_DATE = FULL_MOVEMENTS_START_DATE;
         const dateFrom = `${SNAPSHOT_DATE}T00:00:00.000-03:00`;
 
         // Leer duplicados existentes
@@ -630,13 +671,13 @@ app.get('/api/ml/debug-orders', async (req, res) => {
     }
 });
 
-// ─── ML Stock (Live from API) ─────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Stock (Live from API) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 app.get('/api/ml/stock', async (req, res) => {
     try {
         let cfg = readMlConfig();
         if (!cfg.access_token) {
-            return res.status(400).json({ error: 'No hay token. Autorizá la app primero.' });
+            return res.status(400).json({ error: 'No hay token. AutorizÃƒÂ¡ la app primero.' });
         }
 
         // Refresh token if needed
@@ -653,36 +694,30 @@ app.get('/api/ml/stock', async (req, res) => {
         // Strategy: Extract unique item IDs from orders, then fetch each item directly.
         // The /orders endpoint works (we use it in sync), but /users/{id}/items/search is blocked.
 
-        // 1. Get all orders to discover item IDs
+        // 1. Get all active items to discover item IDs
         let allItemIds = new Set();
-        let offset = 0;
-        const limit = 50;
-        let hasMore = true;
+        let itemOffset = 0;
+        const itemLimit = 50;
+        let fetchingItems = true;
 
-        while (hasMore) {
-            const ordersRes = await mlGet(
-                `/orders/search?seller=${sellerId}&sort=date_desc&offset=${offset}&limit=${limit}`,
+        while (fetchingItems) {
+            const searchRes = await mlGet(
+                `/users/${sellerId}/items/search?status=active&offset=${itemOffset}&limit=${itemLimit}`,
                 token
             );
-            const orders = ordersRes.results || [];
-            for (const order of orders) {
-                for (const orderItem of (order.order_items || [])) {
-                    if (orderItem.item?.id) {
-                        allItemIds.add(orderItem.item.id);
-                    }
-                }
-            }
-            const total = ordersRes.paging?.total || 0;
-            offset += limit;
-            hasMore = offset < total && orders.length > 0;
-            // Safety limit - after finding enough items, stop
-            if (offset > 500) break;
+            const results = searchRes.results || [];
+            results.forEach(id => allItemIds.add(id));
+            
+            const total = searchRes.paging?.total || 0;
+            itemOffset += itemLimit;
+            fetchingItems = itemOffset < total && results.length > 0;
+            if (itemOffset > 1000) break;
         }
 
-        console.log(`[ML Stock] Items descubiertos desde órdenes: ${allItemIds.size}`);
+        console.log(`[ML Stock] Items encontrados: ${allItemIds.size}`);
 
         if (allItemIds.size === 0) {
-            return res.json({ items: [], message: 'No se encontraron items en las órdenes.' });
+            return res.json({ items: [], message: 'No se encontraron items en las ÃƒÂ³rdenes.' });
         }
 
         // 2. Fetch details for each item individually
@@ -691,10 +726,15 @@ app.get('/api/ml/stock', async (req, res) => {
         for (const id of itemIdArray) {
             try {
                 const item = await mlGet(`/items/${id}`, token);
-                items.push(item);
-                console.log(`[ML Stock]   ✓ ${id}: ${item.title?.substring(0, 40)} (${item.status})`);
+                const isFull = item.shipping?.logistic_type === 'fulfillment';
+                if (isFull) {
+                    items.push(item);
+                    console.log(`[ML Stock]   Ã¢Å“â€œ ${id}: Full Ã¢Å“â€¦`);
+                } else {
+                    console.log(`[ML Stock]   Ã¢ÂÂ­Ã¯Â¸Â ${id}: No-Full Ã¢ÂÅ’`);
+                }
             } catch (e) {
-                console.warn(`[ML Stock]   ✗ ${id}: ${e.message}`);
+                console.warn(`[ML Stock]   Ã¢Å“â€” ${id}: ${e.message}`);
             }
         }
 
@@ -704,7 +744,7 @@ app.get('/api/ml/stock', async (req, res) => {
         const stockItems = [];
 
         for (const item of items) {
-            const title = item.title || 'Producto desconocido';
+            const title = normalizeProductName(item.title) || 'Producto desconocido';
             const variations = item.variations || [];
             const isActive = item.status === 'active';
 
@@ -712,15 +752,15 @@ app.get('/api/ml/stock', async (req, res) => {
                 stockItems.push({
                     itemId: item.id,
                     title,
-                    talle: 'Único',
-                    color: 'Único',
+                    talle: 'ÃƒÅ¡nico',
+                    color: 'ÃƒÅ¡nico',
                     available_quantity: item.available_quantity || 0,
                     active: isActive
                 });
             } else {
                 for (const variation of variations) {
-                    let talle = 'Único';
-                    let color = 'Único';
+                    let talle = 'ÃƒÅ¡nico';
+                    let color = 'ÃƒÅ¡nico';
 
                     for (const attr of (variation.attribute_combinations || [])) {
                         const name = (attr.name || '').toLowerCase();
@@ -745,11 +785,24 @@ app.get('/api/ml/stock', async (req, res) => {
             }
         }
 
-        console.log(`[ML Stock] ✅ Stock obtenido. ${stockItems.length} variantes totales, ${stockItems.filter(i => i.active).length} activas.`);
+        console.log(`[ML Stock] Ã¢Å“â€¦ Stock obtenido. ${stockItems.length} variantes totales, ${stockItems.filter(i => i.active).length} activas.`);
+
+        // Persistir stock de ML en data.json
+        const fetchedAt = new Date().toISOString();
+        try {
+            const currentData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            currentData.mlStock = stockItems;
+            currentData.mlStockFetchedAt = fetchedAt;
+            fs.writeFileSync(DATA_FILE, JSON.stringify(currentData, null, 2));
+            console.log('[ML Stock] Stock guardado en data.json.');
+        } catch (saveErr) {
+            console.warn('[ML Stock] No se pudo guardar stock en data.json:', saveErr.message);
+        }
+
         res.json({
             success: true,
             items: stockItems,
-            fetchedAt: new Date().toISOString()
+            fetchedAt
         });
 
     } catch (e) {
@@ -758,8 +811,8 @@ app.get('/api/ml/stock', async (req, res) => {
     }
 });
 
-// ─── Server ───────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Server Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 app.listen(PORT, () => {
-    console.log(`✅ API Server running at http://localhost:${PORT}`);
+    console.log(`Ã¢Å“â€¦ API Server running at http://localhost:${PORT}`);
 });

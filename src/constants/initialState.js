@@ -1,25 +1,13 @@
 export const INITIAL_STATE = {
-    stockEntries: [],
-    sales: [],
-    products: [] // Cached product names for the dropdown
+    manualMovements: [],
+    products: [
+        'Pantalón Palazzo De Jean Mujer Tiro Alto Ancho',
+        'Pantalón Palazzo Jean Mujer Cintura Elastizada Frika',
+        'Bermuda Mujer Gabardina Cintura Elastizada Mod. Lirio Frika',
+        'Jean Oxford Mujer Tiro Alto Elastizado Pantalón Frika',
+        'Conjunto Morley Mujer Pantalon Recto Remera Oversize Frika'
+    ],
+    sales: [], // Used for ML sales
+    mlStock: [],
+    mlStockFetchedAt: null
 };
-
-// Data Structure Examples:
-// stockEntries: [
-//   {
-//     id: 'uuid',
-//     product: 'Remera Cotton',
-//     fechaEnvio: '2024-01-06',
-//     variants: [{ talle: 'M', color: 'Negro', cantidad: 10 }]
-//   }
-// ]
-// sales: [
-//   {
-//     id: 'uuid',
-//     fechaVenta: '2024-01-07',
-//     product: 'Remera Cotton',
-//     talle: 'M',
-//     color: 'Negro',
-//     opNumber: '123456789'
-//   }
-// ]
