@@ -6,11 +6,13 @@ const Dashboard = ({ manualMovements = [], products = [] }) => {
 
     // Calculate manual stock: entry - exit
     const stockMap = {};
+    const allowedProducts = new Set(products.filter(Boolean));
 
     manualMovements.forEach(m => {
+        if (!allowedProducts.has(m.product)) return;
         const key = `${m.product}|${m.talle}|${m.color}`;
         const qty = Number(m.quantity || 1);
-        const change = m.type === 'ingreso' ? qty : -qty;
+        const change = (m.type === 'ingreso' || m.type === 'devolucion') ? qty : -qty;
         stockMap[key] = (stockMap[key] || 0) + change;
     });
 

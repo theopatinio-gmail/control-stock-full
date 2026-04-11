@@ -51,22 +51,61 @@ export const PRODUCT_CATALOG = [
         aliases: [
             'Pantalon de jean oxford',
             'pantalon de jean oxford mujer elastizado',
+            'Pantalón De Jeans Oxford Frika Ropa Linda',
         ],
         colors: ['Azul'],
         sizes: ['S', 'M', 'L', 'XL', 'XXL']
     }
 ];
 
+function normalizeText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
 // Build a fast lookup map: alias → canonical name
 const _aliasMap = new Map();
 PRODUCT_CATALOG.forEach(product => {
     // The canonical name maps to itself
-    _aliasMap.set(product.canonical.toLowerCase().trim(), product.canonical);
+    _aliasMap.set(normalizeText(product.canonical), product.canonical);
     // Each alias maps to canonical
     product.aliases.forEach(alias => {
-        _aliasMap.set(alias.toLowerCase().trim(), product.canonical);
+        _aliasMap.set(normalizeText(alias), product.canonical);
     });
 });
+
+function buildCandidateList(rawName, allowedProducts = []) {
+    const key = normalizeText(rawName);
+    const candidates = [];
+    const seen = new Set();
+    const addCandidate = (name, score, source) => {
+        const normalizedName = normalizeText(name);
+        if (!name || seen.has(normalizedName)) return;
+        seen.add(normalizedName);
+        candidates.push({ name, score, source });
+    };
+
+    const allowedSet = [...new Set(allowedProducts.filter(Boolean))];
+    allowedSet.forEach(name => {
+        const normalizedName = normalizeText(name);
+        if (normalizedName && (key === normalizedName || key.startsWith(normalizedName))) {
+            addCandidate(name, key === normalizedName ? 100 : 80 + Math.min(normalizedName.length, 20), 'allowed');
+        }
+    });
+
+    for (const [alias, canonical] of _aliasMap) {
+        if (key === alias) {
+            addCandidate(canonical, 100, 'catalog-exact');
+        } else if (key.startsWith(alias)) {
+            addCandidate(canonical, 90 + Math.min(alias.length / 10, 9), 'catalog-prefix');
+        }
+    }
+
+    return candidates.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+}
 
 /**
  * Normalizes a product name to its canonical form.
@@ -76,7 +115,7 @@ PRODUCT_CATALOG.forEach(product => {
  */
 export function normalizeProductName(rawName) {
     if (!rawName) return rawName;
-    const key = rawName.toLowerCase().trim();
+    const key = normalizeText(rawName);
 
     // 1. Exact match
     const exactMatch = _aliasMap.get(key);
@@ -96,6 +135,35 @@ export function normalizeProductName(rawName) {
     if (bestMatch) return bestMatch;
 
     return rawName.trim();
+}
+
+/**
+ * Tries to resolve a raw product name against the known catalog plus the
+ * products currently enabled in the app. Returns a structured match so the UI
+ * can ask the user when the match is ambiguous or missing.
+ */
+export function resolveProductMatch(rawName, allowedProducts = []) {
+    const raw = String(rawName || '').trim();
+    if (!raw) {
+        return {
+            product: null,
+            needsReview: true,
+            candidates: [],
+            rawName: ''
+        };
+    }
+
+    const candidates = buildCandidateList(raw, allowedProducts);
+    const topCandidate = candidates[0] || null;
+    const secondCandidate = candidates[1] || null;
+    const needsReview = !topCandidate || Boolean(secondCandidate && secondCandidate.score === topCandidate.score);
+
+    return {
+        product: needsReview ? null : topCandidate.name,
+        needsReview,
+        candidates: candidates.map(c => c.name),
+        rawName: raw
+    };
 }
 
 /**

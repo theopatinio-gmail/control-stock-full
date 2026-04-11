@@ -1,0 +1,42 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FRIKA Stock icon">
+  <defs>
+    <linearGradient id="bg" x1="72" y1="48" x2="440" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="150" y1="130" x2="370" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="green" x1="172" y1="238" x2="340" y2="366" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34D399"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+    <filter id="shadow" x="96" y="96" width="320" height="320" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#020617" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bg)"/>
+  <circle cx="138" cy="142" r="70" fill="#6D28D9" fill-opacity="0.18"/>
+  <circle cx="382" cy="370" r="88" fill="#10B981" fill-opacity="0.10"/>
+
+  <g filter="url(#shadow)">
+    <path d="M156 210C156 186.804 174.804 168 198 168H314C337.196 168 356 186.804 356 210V304C356 327.196 337.196 346 314 346H198C174.804 346 156 327.196 156 304V210Z" fill="url(#violet)"/>
+    <path d="M186 206C186 197.163 193.163 190 202 190H310C318.837 190 326 197.163 326 206V216H186V206Z" fill="#C4B5FD" fill-opacity="0.22"/>
+    <path d="M194 228H318V286C318 299.255 307.255 310 294 310H218C204.745 310 194 299.255 194 286V228Z" fill="#0F172A" fill-opacity="0.24"/>
+
+    <path d="M218 258L246 230L272 256L300 228" stroke="white" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M300 228V252" stroke="white" stroke-width="18" stroke-linecap="round"/>
+    <path d="M300 228H276" stroke="white" stroke-width="18" stroke-linecap="round"/>
+
+    <path d="M188 304H324" stroke="#E2E8F0" stroke-opacity="0.5" stroke-width="10" stroke-linecap="round"/>
+    <path d="M218 322H294" stroke="#E2E8F0" stroke-opacity="0.28" stroke-width="8" stroke-linecap="round"/>
+
+    <path d="M196 318L214 300H246L264 318H196Z" fill="url(#green)"/>
+    <path d="M268 318L286 300H316L334 318H268Z" fill="#22C55E" fill-opacity="0.75"/>
+  </g>
+
+  <rect x="146" y="366" width="220" height="18" rx="9" fill="#0F172A" fill-opacity="0.45"/>
+  <rect x="176" y="392" width="160" height="14" rx="7" fill="#C4B5FD" fill-opacity="0.22"/>
+</svg>

@@ -1,9 +1,9 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { normalizeProductName } from './src/utils/productMapping.js';
+import { getProductCatalogEntry, normalizeProductName, resolveProductMatch } from './src/utils/productMapping.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,20 +16,21 @@ const ML_CONFIG_FILE = path.join(__dirname, 'ml_config.json');
 app.use(cors());
 app.use(express.json());
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Data File Init Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Data File Init ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 const INITIAL_DATA = { 
     manualMovements: [], 
     sales: [], 
     products: [
-        'PantalÃƒÂ³n Palazzo De Jean Mujer Tiro Alto Ancho',
-        'PantalÃƒÂ³n Palazzo Jean Mujer Cintura Elastizada Frika',
+        'Pantalón Palazzo De Jean Mujer Tiro Alto Ancho',
+        'Pantalón Palazzo Jean Mujer Cintura Elastizada Frika',
         'Bermuda Mujer Gabardina Cintura Elastizada Mod. Lirio Frika',
-        'Jean Oxford Mujer Tiro Alto Elastizado PantalÃƒÂ³n Frika',
+        'Jean Oxford Mujer Tiro Alto Elastizado Pantalón Frika',
         'Conjunto Morley Mujer Pantalon Recto Remera Oversize Frika'
     ], 
     mlStock: [], 
-    mlStockFetchedAt: null 
+    mlStockFetchedAt: null,
+    productCosts: {}
 };
 if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_DATA, null, 2));
@@ -45,7 +46,7 @@ const INITIAL_ML_CONFIG = {
     redirect_uri: 'https://127.0.0.1',
     // IDs de productos Full a sincronizar (agregar los que uses)
     full_item_ids: ['MLA864272312', 'MLA2686396878'],
-    // Corte histÃƒÂ³rico para la sync Full
+    // Corte histÃƒÆ’Ã‚Â³rico para la sync Full
     snapshot_date: '2025-07-01'
 };
 if (!fs.existsSync(ML_CONFIG_FILE)) {
@@ -61,7 +62,7 @@ function saveMlConfig(cfg) {
 
 const FULL_MOVEMENTS_START_DATE = '2025-07-01';
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Data endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Data endpoints ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 app.get('/api/data', (req, res) => {
     console.log('[GET] Reading data.json...');
@@ -75,7 +76,7 @@ app.get('/api/data', (req, res) => {
 });
 
 app.post('/api/data', (req, res) => {
-    console.log('[POST] Saving data... Entries:', req.body.stockEntries?.length || 0);
+    console.log('[POST] Saving data... Manual movements:', req.body.manualMovements?.length || 0);
     try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
         console.log('[SUCCESS] Data saved to disk.');
@@ -86,7 +87,7 @@ app.post('/api/data', (req, res) => {
     }
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Config endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ML Config endpoints ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 // GET ml config (no devuelve secrets)
 app.get('/api/ml/status', (req, res) => {
@@ -108,7 +109,7 @@ app.get('/api/ml/status', (req, res) => {
     }
 });
 
-// POST guardar credenciales y configuraciÃƒÂ³n de sync
+// POST guardar credenciales y configuraciÃƒÆ’Ã‚Â³n de sync
 app.post('/api/ml/config', (req, res) => {
     try {
         const { client_id, client_secret, redirect_uri, full_item_ids, snapshot_date } = req.body;
@@ -125,14 +126,14 @@ app.post('/api/ml/config', (req, res) => {
         }
 
         saveMlConfig(cfg);
-        console.log('[ML] ConfiguraciÃƒÂ³n actualizada:', { client_id: cfg.client_id, redirect_uri: cfg.redirect_uri });
+        console.log('[ML] ConfiguraciÃƒÆ’Ã‚Â³n actualizada:', { client_id: cfg.client_id, redirect_uri: cfg.redirect_uri });
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// GET url de autorizaciÃƒÂ³n
+// GET url de autorizaciÃƒÆ’Ã‚Â³n
 app.get('/api/ml/authorize-url', (req, res) => {
     try {
         const cfg = readMlConfig();
@@ -140,7 +141,7 @@ app.get('/api/ml/authorize-url', (req, res) => {
             return res.status(400).json({ error: 'No hay client_id configurado' });
         }
         const redirectUri = cfg.redirect_uri || 'https://127.0.0.1';
-        // Agregamos scopes explÃƒÂ­citos para tener permisos de lectura, escritura y renovaciÃƒÂ³n de token
+        // Agregamos scopes explÃƒÆ’Ã‚Â­citos para tener permisos de lectura, escritura y renovaciÃƒÆ’Ã‚Â³n de token
         const scopes = 'offline_access read write';
         const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${cfg.client_id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
         res.json({ url: authUrl });
@@ -157,7 +158,7 @@ app.post('/api/ml/exchange-token', async (req, res) => {
 
         const cfg = readMlConfig();
         if (!cfg.client_id || !cfg.client_secret) {
-            return res.status(400).json({ error: 'ConfigurÃƒÂ¡ las credenciales primero' });
+            return res.status(400).json({ error: 'ConfigurÃƒÆ’Ã‚Â¡ las credenciales primero' });
         }
 
         const params = {
@@ -167,7 +168,7 @@ app.post('/api/ml/exchange-token', async (req, res) => {
             code: code,
             redirect_uri: cfg.redirect_uri || 'https://127.0.0.1'
         };
-        console.log('[ML Exchange] Enviando parÃƒÂ¡metros:', { ...params, client_secret: '***' });
+        console.log('[ML Exchange] Enviando parÃƒÆ’Ã‚Â¡metros:', { ...params, client_secret: '***' });
 
         const body = new URLSearchParams(params);
 
@@ -195,17 +196,49 @@ app.post('/api/ml/exchange-token', async (req, res) => {
     }
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Sync Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ML Sync ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 async function mlGet(path, token) {
     const url = `https://api.mercadolibre.com${path}`;
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await r.json();
-    if (!r.ok) throw new Error(`ML API error ${r.status}: ${JSON.stringify(data)}`);
+    let r;
+    try {
+        r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (e) {
+        const cause = e?.cause?.code ? ` (${e.cause.code})` : '';
+        throw new Error(`Fetch failed for ${path}${cause}: ${e.message}`);
+    }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(`ML API error ${r.status} for ${path}: ${JSON.stringify(data)}`);
     return data;
 }
 
-// Refresca el token si venciÃƒÂ³
+async function getShipmentSellerCost(shipmentId, token, sellerId = null) {
+    if (!shipmentId) return 0;
+
+    try {
+        const costs = await mlGet(`/shipments/${shipmentId}/costs`, token);
+        const senders = Array.isArray(costs.senders) ? costs.senders : [];
+        if (senders.length > 0) {
+            if (sellerId !== null && sellerId !== undefined) {
+                const match = senders.find(sender => String(sender.user_id) === String(sellerId));
+                if (match) return parseFloat(match.cost || 0);
+            }
+            return parseFloat(senders[0].cost || 0);
+        }
+    } catch (e) {
+        console.warn(`[ML Sync] No se pudo leer /costs para shipment ${shipmentId}: ${e.message}`);
+    }
+
+    try {
+        const shipmentRes = await mlGet(`/shipments/${shipmentId}`, token);
+        return parseFloat(shipmentRes.base_cost || shipmentRes.cost || 0);
+    } catch (e) {
+        console.warn(`[ML Sync] No se pudo leer shipment ${shipmentId}: ${e.message}`);
+        return 0;
+    }
+}
+
+// Refresca el token si venciÃƒÆ’Ã‚Â³
 async function refreshTokenIfNeeded(cfg) {
     if (!cfg.refresh_token || !cfg.client_id || !cfg.client_secret) return cfg;
     try {
@@ -225,7 +258,7 @@ async function refreshTokenIfNeeded(cfg) {
             cfg.access_token = d.access_token;
             cfg.refresh_token = d.refresh_token;
             saveMlConfig(cfg);
-            console.log('[ML] Token refrescado automÃƒÂ¡ticamente.');
+            console.log('[ML] Token refrescado automÃƒÆ’Ã‚Â¡ticamente.');
         }
     } catch (e) {
         console.warn('[ML] No se pudo refrescar token:', e.message);
@@ -253,18 +286,69 @@ function getDateWindows(startDate, endDate, maxWindowDays = 60) {
     return windows;
 }
 
-function extractVariantAttributes(attributes = []) {
+function normalizeText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function findBestTokenMatch(text, candidates = []) {
+    const normalizedText = normalizeText(text);
+    let bestMatch = null;
+    let bestLength = 0;
+
+    for (const candidate of candidates) {
+        const normalizedCandidate = normalizeText(candidate);
+        if (!normalizedCandidate) continue;
+        if (normalizedText.includes(normalizedCandidate) && normalizedCandidate.length > bestLength) {
+            bestMatch = candidate;
+            bestLength = normalizedCandidate.length;
+        }
+    }
+
+    return bestMatch;
+}
+
+function extractVariantAttributes(orderItem = {}, productEntry = null) {
     let talle = 'Unico';
     let color = 'Unico';
 
-    for (const attr of attributes) {
-        const name = attr?.name?.toLowerCase() || '';
-        if (name.includes('talle') || name.includes('talla') || name.includes('size')) {
-            talle = attr.value_name || talle;
+    const attributeSources = [
+        orderItem.item?.variation_attributes,
+        orderItem.item?.attribute_combinations,
+        orderItem.item?.attributes,
+        orderItem.variation?.attributes,
+        orderItem.variation_attributes
+    ].filter(Array.isArray);
+
+    for (const attributes of attributeSources) {
+        for (const attr of attributes) {
+            const name = normalizeText(attr?.name);
+            if (name.includes('talle') || name.includes('talla') || name.includes('size')) {
+                talle = attr.value_name || talle;
+            }
+            if (name.includes('color')) {
+                color = attr.value_name || color;
+            }
         }
-        if (name.includes('color')) {
-            color = attr.value_name || color;
-        }
+    }
+
+    const titleText = [
+        orderItem.item?.title,
+        orderItem.item?.variation_name,
+        orderItem.variation?.name
+    ].filter(Boolean).join(' ');
+
+    if (talle === 'Unico' && productEntry?.sizes?.length) {
+        const matchedSize = findBestTokenMatch(titleText, productEntry.sizes);
+        if (matchedSize) talle = matchedSize;
+    }
+
+    if (color === 'Unico' && productEntry?.colors?.length) {
+        const matchedColor = findBestTokenMatch(titleText, productEntry.colors);
+        if (matchedColor) color = matchedColor;
     }
 
     return { talle, color };
@@ -274,7 +358,7 @@ app.post('/api/ml/sync', async (req, res) => {
     try {
         let cfg = readMlConfig();
         if (!cfg.access_token) {
-            return res.status(400).json({ error: 'No hay token. AutorizÃƒÂ¡ la app primero.' });
+            return res.status(400).json({ error: 'No hay token. AutorizÃƒÆ’Ã‚Â¡ la app primero.' });
         }
 
         // Intentar refrescar token
@@ -285,14 +369,14 @@ app.post('/api/ml/sync', async (req, res) => {
         console.log('[ML Sync] Validando token con /users/me...');
         const me = await mlGet('/users/me', token);
         const sellerId = me.id;
-        console.log('[ML Sync] Token vÃƒÂ¡lido. User:', me.nickname, 'ID:', sellerId);
+        console.log('[ML Sync] Token vÃƒÆ’Ã‚Â¡lido. User:', me.nickname, 'ID:', sellerId);
 
         const SNAPSHOT_DATE = FULL_MOVEMENTS_START_DATE;
         const OPERATIONS_DATE_FROM = FULL_MOVEMENTS_START_DATE;
         const TODAY_DATE = new Date().toISOString().split('T')[0];
 
-        // 1. Obtener todas las ÃƒÂ³rdenes pagadas desde el snapshot
-        console.log(`[ML Sync] Buscando ÃƒÂ³rdenes pagadas desde ${SNAPSHOT_DATE}...`);
+        // 1. Obtener todas las ÃƒÆ’Ã‚Â³rdenes pagadas desde el snapshot
+        console.log(`[ML Sync] Buscando ÃƒÆ’Ã‚Â³rdenes pagadas desde ${SNAPSHOT_DATE}...`);
         const dateFrom = `${SNAPSHOT_DATE}T00:00:00.000-03:00`;
 
         let allOrders = [];
@@ -313,17 +397,12 @@ app.post('/api/ml/sync', async (req, res) => {
             if (offset > 10000) break; // Increased from 500 to 10000
         }
 
-        console.log(`[ML Sync] Ãƒâ€œrdenes pagadas encontradas: ${allOrders.length}`);
+        console.log(`[ML Sync] ÃƒÆ’Ã¢â‚¬Å“rdenes pagadas encontradas: ${allOrders.length}`);
 
         // Leer datos actuales para desduplicar
         const currentData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
         const existingOpNumbers = new Set(currentData.sales.map(s => String(s.opNumber).trim()));
-        const existingInboundOperationIds = new Set(
-            (currentData.stockEntries || [])
-                .flatMap(entry => Array.isArray(entry.mlOperationIds) ? entry.mlOperationIds : [entry.mlOperationId])
-                .filter(Boolean)
-                .map(id => String(id).trim())
-        );
+        const allowedProducts = Array.isArray(currentData.products) ? currentData.products : [];
 
         // Cache de logistic_type por item ID (persiste en ml_config.json)
         // Evita consultar /items/{id} repetidamente para el mismo item
@@ -339,7 +418,7 @@ app.post('/api/ml/sync', async (req, res) => {
             return item;
         }
 
-        // FunciÃƒÂ³n para verificar si un item es Full (fulfillment)
+        // FunciÃƒÆ’Ã‚Â³n para verificar si un item es Full (fulfillment)
         async function isFullItem(itemId) {
             if (!itemId) return false;
             if (fulfillmentCache[itemId] !== undefined) {
@@ -351,17 +430,16 @@ app.post('/api/ml/sync', async (req, res) => {
                 const isFull = logisticType === 'fulfillment';
                 fulfillmentCache[itemId] = isFull;
                 cacheUpdated = true;
-                console.log(`[ML Sync]   Ã°Å¸â€œÂ¦ Item ${itemId}: logistic_type="${logisticType}" Ã¢â€ â€™ ${isFull ? 'FULL Ã¢Å“â€¦' : 'NO Full Ã¢ÂÅ’'}`);
+                console.log(`[ML Sync]   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¦ Item ${itemId}: logistic_type="${logisticType}" ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${isFull ? 'FULL ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦' : 'NO Full ÃƒÂ¢Ã‚ÂÃ…â€™'}`);
                 return isFull;
             } catch (e) {
-                console.warn(`[ML Sync]   Ã¢Å¡Â Ã¯Â¸Â No se pudo verificar item ${itemId}: ${e.message}`);
+                console.warn(`[ML Sync]   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â No se pudo verificar item ${itemId}: ${e.message}`);
                 return false;
             }
         }
 
         let allNewSales = [];
         let skippedNonFull = 0;
-
         for (const order of allOrders) {
             const orderId = String(order.id);
             if (existingOpNumbers.has(orderId)) continue;
@@ -372,217 +450,134 @@ app.post('/api/ml/sync', async (req, res) => {
 
             if (orderDate < SNAPSHOT_DATE) continue;
 
+            const orderItems = (order.order_items || []).filter(oi => oi.item?.id);
+            const totalOrderQty = orderItems.reduce((sum, oi) => sum + (parseInt(oi.quantity || 1, 10)), 0);
+            let shippingCost = parseFloat(order.shipping_cost || order.shipping?.shipping_cost || 0);
+            if (order.shipping?.id) {
+                const shipmentSellerCost = await getShipmentSellerCost(order.shipping.id, token, sellerId);
+                if (shipmentSellerCost > 0) shippingCost = shipmentSellerCost;
+            }
+            const shippingCostPerUnit = totalOrderQty > 0 ? shippingCost / totalOrderQty : 0;
+            
             for (const orderItem of (order.order_items || [])) {
                 const itemId = orderItem.item?.id;
-
-                // Ã¢â€â‚¬Ã¢â€â‚¬ Filtro dinÃƒÂ¡mico: solo items con logistic_type=fulfillment Ã¢â€â‚¬Ã¢â€â‚¬
                 const isFull = await isFullItem(itemId);
                 if (!isFull) {
                     skippedNonFull++;
-                    console.log(`[ML Sync]   Ã¢ÂÂ­Ã¯Â¸Â Omitida (no Full): ${orderItem.item?.title} - Item ${itemId}`);
                     continue;
                 }
 
-                const rawProductName = orderItem.item?.title || 'Producto desconocido';
-                const productName = normalizeProductName(rawProductName);
-
-                const { talle, color } = extractVariantAttributes(orderItem.item?.variation_attributes || []);
-
-                const sale = {
-                    id: `ml-${orderId}-${orderItem.item?.variation_id || 'nv'}`,
-                    product: productName,
-                    talle,
-                    color,
-                    opNumber: orderId,
-                    fechaVenta: orderDate,
-                    cantidad: orderItem.quantity || 1,
-                    source: 'mercadolibre',
-                    mlItemId: itemId || null
-                };
-                allNewSales.push(sale);
-                console.log(`[ML Sync]   Ã¢Å“â€¦ Venta Full: ${productName} (${talle}/${color}) - Orden ${orderId}`);
+                const rawProductName = orderItem.item?.title || '';
+                const productMatch = resolveProductMatch(rawProductName, allowedProducts);
+                const productName = productMatch.product || normalizeProductName(rawProductName) || rawProductName.trim() || 'Producto sin nombre';
+                const productEntry = getProductCatalogEntry(productName) || getProductCatalogEntry(rawProductName);
+                const { talle, color } = extractVariantAttributes(orderItem, productEntry);
+                const quantity = parseInt(orderItem.quantity || 1, 10);
+                const unitPrice = parseFloat(orderItem.unit_price || 0);
+                const saleFee = parseFloat(orderItem.sale_fee || 0);
+                const totalVenta = unitPrice * quantity;
+                const totalComision = saleFee * quantity;
+                const totalEnvio = shippingCostPerUnit * quantity;
+                
+                const saleId = `ml-${orderId}-${orderItem.item?.variation_id || 'nv'}`;
+                const existingSale = currentData.sales.find(s => s.id === saleId);
+                if (existingSale) {
+                    existingSale.product = productName;
+                    existingSale.productRawName = rawProductName;
+                    existingSale.productNeedsReview = productMatch.needsReview;
+                    existingSale.productCandidates = productMatch.candidates;
+                    existingSale.productResolved = !productMatch.needsReview;
+                    existingSale.talle = talle;
+                    existingSale.color = color;
+                    existingSale.unitPrice = unitPrice;
+                    existingSale.totalVenta = totalVenta;
+                    existingSale.comisionML = totalComision;
+                    existingSale.costoEnvio = totalEnvio;
+                    existingSale.orderTotalAmount = parseFloat(order.total_amount || 0);
+                    existingSale.cantidad = quantity;
+                } else {
+                    const sale = {
+                        id: saleId,
+                        product: productName,
+                        productRawName: rawProductName,
+                        productNeedsReview: productMatch.needsReview,
+                        productCandidates: productMatch.candidates,
+                        productResolved: !productMatch.needsReview,
+                        talle,
+                        color,
+                        opNumber: orderId,
+                        fechaVenta: orderDate,
+                        cantidad: quantity,
+                        source: 'mercadolibre',
+                        mlItemId: itemId || null,
+                        unitPrice: unitPrice,
+                        totalVenta: totalVenta,
+                        comisionML: totalComision,
+                        costoEnvio: totalEnvio,
+                        orderTotalAmount: parseFloat(order.total_amount || 0)
+                    };
+                    allNewSales.push(sale);
+                    console.log(`[ML Sync]   Nueva venta Full: ${productName} (${talle}/${color}) - Orden ${orderId}`);
+                }
             }
             existingOpNumbers.add(orderId);
         }
 
-        // 3. Obtener todos los items activos del seller para descubrir ingresos a Full automÃƒÂ¡ticamente
-        let allSellerItems = new Set();
-        try {
-            console.log(`[ML Sync] Buscando todos los items activos del vendedor ${sellerId}...`);
-            let itemOffset = 0;
-            const itemLimit = 50;
-            let fetchingItems = true;
-            while (fetchingItems) {
-                const searchRes = await mlGet(`/users/${sellerId}/items/search?status=active&offset=${itemOffset}&limit=${itemLimit}`, token);
-                const results = searchRes.results || [];
-                for (const id of results) allSellerItems.add(id);
-
-                const total = searchRes.paging?.total || 0;
-                itemOffset += itemLimit;
-                fetchingItems = itemOffset < total && results.length > 0;
+        let updatedSales = 0;
+        for (const order of allOrders) {
+            const orderId = String(order.id);
+            const orderItems = (order.order_items || []).filter(oi => oi.item?.id);
+            const totalOrderQty = orderItems.reduce((sum, oi) => sum + (parseInt(oi.quantity || 1, 10)), 0);
+            let shippingCost = parseFloat(order.shipping_cost || order.shipping?.shipping_cost || 0);
+            if (order.shipping?.id) {
+                const shipmentSellerCost = await getShipmentSellerCost(order.shipping.id, token, sellerId);
+                if (shipmentSellerCost > 0) shippingCost = shipmentSellerCost;
             }
-            console.log(`[ML Sync] Se encontraron ${allSellerItems.size} items activos en total.`);
-        } catch (e) {
-            console.warn(`[ML Sync]   Ã¢Å¡Â Ã¯Â¸Â No se pudieron obtener los items del vendedor: ${e.message}`);
-        }
-
-        // Agregar tambiÃƒÂ©n los configurados manualmente (por si hay inactivos con stock)
-        const configuredIds = Array.isArray(cfg.full_item_ids) ? cfg.full_item_ids.filter(Boolean) : [];
-        configuredIds.forEach(id => allSellerItems.add(id));
-
-        // 4. Importar ingresos Full (inbound_reception) para los items descubiertos
-        let allNewEntries = [];
-
-        if (allSellerItems.size > 0) {
-            console.log(`[ML Sync] Verificando cuÃƒÂ¡les de los ${allSellerItems.size} items son Full y buscando sus ingresos desde ${OPERATIONS_DATE_FROM} hasta ${TODAY_DATE}...`);
-
-            const inventoryMap = new Map();
-
-            for (const itemId of allSellerItems) {
-                try {
-                    const isFull = await isFullItem(itemId);
-                    if (!isFull) continue;
-
-                    const item = await getItem(itemId);
-                    if (!item) continue;
-
-                    const baseProduct = item.title || itemId;
-
-                    if (Array.isArray(item.variations) && item.variations.length > 0) {
-                        for (const variation of item.variations) {
-                            if (!variation.inventory_id) continue;
-                            const { talle, color } = extractVariantAttributes(variation.attribute_combinations || variation.attributes || []);
-                            inventoryMap.set(variation.inventory_id, {
-                                itemId,
-                                product: baseProduct,
-                                talle,
-                                color
-                            });
-                        }
-                    } else if (item.inventory_id) {
-                        inventoryMap.set(item.inventory_id, {
-                            itemId,
-                            product: baseProduct,
-                            talle: 'Unico',
-                            color: 'Unico'
-                        });
-                    }
-                } catch (e) {
-                    console.warn(`[ML Sync]   Ã¢Å¡Â Ã¯Â¸Â No se pudo preparar inventory_id para ${itemId}: ${e.message}`);
-                }
-            }
-
-            for (const [inventoryId, inventoryInfo] of inventoryMap.entries()) {
-                try {
-                    const windows = getDateWindows(OPERATIONS_DATE_FROM, TODAY_DATE);
-                    const limit = 50;
-
-                    for (const window of windows) {
-                        let offset = 0;
-                        let hasMore = true;
-
-                        while (hasMore) {
-                            const operationsRes = await mlGet(
-                                `/stock/fulfillment/operations/search?seller_id=${sellerId}&inventory_id=${encodeURIComponent(inventoryId)}&date_from=${window.from}&date_to=${window.to}&limit=${limit}&offset=${offset}`,
-                                token
-                            );
-
-                            const operations = operationsRes.results || [];
-                            for (const operation of operations) {
-                                if (operation.type !== 'INBOUND_RECEPTION') continue;
-
-                                const operationId = String(operation.id);
-                                if (existingInboundOperationIds.has(operationId)) continue;
-
-                                const quantity = Number(
-                                    operation.detail?.available_quantity
-                                    ?? operation.result?.available_quantity
-                                    ?? operation.result?.total
-                                    ?? 0
-                                );
-
-                                if (quantity <= 0) continue;
-
-                                const inboundReference = (operation.external_references || []).find(ref => ref.type === 'inbound_id')?.value || null;
-                                const entryDate = (operation.date_created || '').split('T')[0] || TODAY_DATE;
-
-                                allNewEntries.push({
-                                    id: `ml-inbound-${operationId}`,
-                                    product: normalizeProductName(inventoryInfo.product),
-                                    fechaEnvio: entryDate,
-                                    variants: [{
-                                        talle: inventoryInfo.talle,
-                                        color: inventoryInfo.color,
-                                        cantidad: quantity
-                                    }],
-                                    source: 'mercadolibre',
-                                    mlItemId: inventoryInfo.itemId,
-                                    mlInventoryId: inventoryId,
-                                    mlOperationId: operationId,
-                                    mlOperationIds: [operationId],
-                                    mlInboundId: inboundReference
-                                });
-                                existingInboundOperationIds.add(operationId);
-
-                                console.log(`[ML Sync] Ingreso Full: ${inventoryInfo.product} (${inventoryInfo.talle}/${inventoryInfo.color}) +${quantity} - Op ${operationId}`);
-                            }
-
-                            const total = operationsRes.paging?.total || 0;
-                            offset += limit;
-                            hasMore = offset < total && operations.length > 0;
-                            if (offset > 500) break;
-                        }
-                    }
-                } catch (e) {
-                    console.warn(`[ML Sync] No se pudieron consultar ingresos para inventory_id ${inventoryId}: ${e.message}`);
+            const shippingCostPerUnit = totalOrderQty > 0 ? shippingCost / totalOrderQty : 0;
+            
+            for (const orderItem of (order.order_items || [])) {
+                const itemId = orderItem.item?.id;
+                const isFull = await isFullItem(itemId);
+                if (!isFull) continue;
+                
+                const saleId = `ml-${orderId}-${orderItem.item?.variation_id || 'nv'}`;
+                const existingSale = currentData.sales.find(s => s.id === saleId);
+                if (existingSale) {
+                    const unitPrice = parseFloat(orderItem.unit_price || 0);
+                    const saleFee = parseFloat(orderItem.sale_fee || 0);
+                    const quantity = parseInt(orderItem.quantity || 1, 10);
+                    const totalEnvio = shippingCostPerUnit * quantity;
+                    existingSale.unitPrice = unitPrice;
+                    existingSale.totalVenta = unitPrice * quantity;
+                    existingSale.comisionML = saleFee * quantity;
+                    existingSale.costoEnvio = totalEnvio;
+                    existingSale.orderTotalAmount = parseFloat(order.total_amount || 0);
+                    updatedSales++;
                 }
             }
         }
 
-        // 4. Guardar las ventas nuevas en data.json
-        if (allNewSales.length > 0 || allNewEntries.length > 0) {
-            if (allNewSales.length > 0) {
-                currentData.sales = [...allNewSales, ...currentData.sales];
-            }
-            if (allNewEntries.length > 0) {
-                currentData.stockEntries = [...allNewEntries, ...(currentData.stockEntries || [])];
-            }
-            const existingProducts = new Set(currentData.products || []);
-            [...allNewSales, ...allNewEntries].forEach(record => {
-                if (record.product && !existingProducts.has(record.product)) {
-                    existingProducts.add(record.product);
-                }
-            });
-            currentData.products = [...existingProducts];
-            fs.writeFileSync(DATA_FILE, JSON.stringify(currentData, null, 2));
+        // 3. Guardar las ventas nuevas en data.json
+        if (allNewSales.length > 0) {
+            currentData.sales = [...allNewSales, ...currentData.sales];
         }
+        fs.writeFileSync(DATA_FILE, JSON.stringify(currentData, null, 2));
 
-        // Persistir stock ML actualizado despuÃƒÂ©s del sync
-        try {
-            const stockRes = await fetch(`http://localhost:${PORT}/api/ml/stock`, {
-                headers: { 'Accept': 'application/json' }
-            });
-            if (stockRes.ok) {
-                console.log('[ML Sync] Stock de ML actualizado en data.json despuÃƒÂ©s del sync.');
-            }
-        } catch (stockErr) {
-            console.warn('[ML Sync] No se pudo actualizar stock ML post-sync:', stockErr.message);
-        }
-
-        // 5. Actualizar config: last_sync + cache de fulfillment
+        // 4. Actualizar config: last_sync + cache de fulfillment
         cfg.last_sync = new Date().toISOString();
         cfg.fulfillment_cache = fulfillmentCache;
         saveMlConfig(cfg);
 
-        console.log(`[ML Sync] Ã¢Å“â€¦ Sync completo. Ventas Full nuevas: ${allNewSales.length}, ingresos Full nuevos: ${allNewEntries.length}, omitidas (no Full): ${skippedNonFull}`);
+        console.log(`[ML Sync] Sync completo. Ventas Full nuevas: ${allNewSales.length}, actualizadas: ${updatedSales}, omitidas (no Full): ${skippedNonFull}`);
         res.json({
             success: true,
             newSales: allNewSales.length,
-            newEntries: allNewEntries.length,
+            updatedSales,
             skippedNonFull,
             sales: allNewSales,
-            entries: allNewEntries,
-            message: `Sync completado. ${allNewSales.length} venta(s) Full y ${allNewEntries.length} ingreso(s) Full importado(s).${skippedNonFull > 0 ? ` (${skippedNonFull} no-Full omitidas)` : ''}`
+            unresolvedSales: allNewSales.filter(s => s.productNeedsReview),
+            entries: [],
+            message: `Sync completado. ${allNewSales.length} nueva(s), ${updatedSales} actualizadas con precios.${skippedNonFull > 0 ? ` (${skippedNonFull} no-Full omitidas)` : ''}`
         });
 
     } catch (e) {
@@ -592,7 +587,7 @@ app.post('/api/ml/sync', async (req, res) => {
 });
 
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Debug Orders Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ML Debug Orders ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 app.get('/api/ml/debug-orders', async (req, res) => {
     try {
@@ -671,13 +666,13 @@ app.get('/api/ml/debug-orders', async (req, res) => {
     }
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ML Stock (Live from API) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ML Stock (Live from API) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 app.get('/api/ml/stock', async (req, res) => {
     try {
         let cfg = readMlConfig();
         if (!cfg.access_token) {
-            return res.status(400).json({ error: 'No hay token. AutorizÃƒÂ¡ la app primero.' });
+            return res.status(400).json({ error: 'No hay token. AutorizÃƒÆ’Ã‚Â¡ la app primero.' });
         }
 
         // Refresh token if needed
@@ -717,7 +712,7 @@ app.get('/api/ml/stock', async (req, res) => {
         console.log(`[ML Stock] Items encontrados: ${allItemIds.size}`);
 
         if (allItemIds.size === 0) {
-            return res.json({ items: [], message: 'No se encontraron items en las ÃƒÂ³rdenes.' });
+            return res.json({ items: [], message: 'No se encontraron items en las ÃƒÆ’Ã‚Â³rdenes.' });
         }
 
         // 2. Fetch details for each item individually
@@ -729,12 +724,12 @@ app.get('/api/ml/stock', async (req, res) => {
                 const isFull = item.shipping?.logistic_type === 'fulfillment';
                 if (isFull) {
                     items.push(item);
-                    console.log(`[ML Stock]   Ã¢Å“â€œ ${id}: Full Ã¢Å“â€¦`);
+                    console.log(`[ML Stock]   ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ ${id}: Full ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦`);
                 } else {
-                    console.log(`[ML Stock]   Ã¢ÂÂ­Ã¯Â¸Â ${id}: No-Full Ã¢ÂÅ’`);
+                    console.log(`[ML Stock]   ÃƒÂ¢Ã‚ÂÃ‚Â­ÃƒÂ¯Ã‚Â¸Ã‚Â ${id}: No-Full ÃƒÂ¢Ã‚ÂÃ…â€™`);
                 }
             } catch (e) {
-                console.warn(`[ML Stock]   Ã¢Å“â€” ${id}: ${e.message}`);
+                console.warn(`[ML Stock]   ÃƒÂ¢Ã…â€œÃ¢â‚¬â€ ${id}: ${e.message}`);
             }
         }
 
@@ -752,15 +747,15 @@ app.get('/api/ml/stock', async (req, res) => {
                 stockItems.push({
                     itemId: item.id,
                     title,
-                    talle: 'ÃƒÅ¡nico',
-                    color: 'ÃƒÅ¡nico',
+                    talle: 'ÃƒÆ’Ã…Â¡nico',
+                    color: 'ÃƒÆ’Ã…Â¡nico',
                     available_quantity: item.available_quantity || 0,
                     active: isActive
                 });
             } else {
                 for (const variation of variations) {
-                    let talle = 'ÃƒÅ¡nico';
-                    let color = 'ÃƒÅ¡nico';
+                    let talle = 'ÃƒÆ’Ã…Â¡nico';
+                    let color = 'ÃƒÆ’Ã…Â¡nico';
 
                     for (const attr of (variation.attribute_combinations || [])) {
                         const name = (attr.name || '').toLowerCase();
@@ -785,7 +780,7 @@ app.get('/api/ml/stock', async (req, res) => {
             }
         }
 
-        console.log(`[ML Stock] Ã¢Å“â€¦ Stock obtenido. ${stockItems.length} variantes totales, ${stockItems.filter(i => i.active).length} activas.`);
+        console.log(`[ML Stock] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Stock obtenido. ${stockItems.length} variantes totales, ${stockItems.filter(i => i.active).length} activas.`);
 
         // Persistir stock de ML en data.json
         const fetchedAt = new Date().toISOString();
@@ -811,8 +806,31 @@ app.get('/api/ml/stock', async (req, res) => {
     }
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Server Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Server ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+
+
+app.get('/api/product-costs', (req, res) => {
+    try {
+        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        res.json({ productCosts: data.productCosts || {} });
+    } catch (error) {
+        res.status(500).json({ error: 'Error reading product costs' });
+    }
+});
+
+app.post('/api/product-costs', (req, res) => {
+    try {
+        const { productCosts } = req.body;
+        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        data.productCosts = productCosts || {};
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Error saving product costs' });
+    }
+});
 
 app.listen(PORT, () => {
-    console.log(`Ã¢Å“â€¦ API Server running at http://localhost:${PORT}`);
+    console.log(`ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ API Server running at http://localhost:${PORT}`);
 });
+

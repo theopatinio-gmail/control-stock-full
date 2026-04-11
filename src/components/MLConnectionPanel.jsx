@@ -11,7 +11,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
     const [clientSecret, setClientSecret] = useState('')
     const [savingCreds, setSavingCreds] = useState(false)
 
-    // Estado conexión
+    // Estado conexiÃ³n
     const [mlStatus, setMlStatus] = useState({
         hasClientId: false,
         hasToken: false,
@@ -35,6 +35,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
     // Sync
     const [syncStatus, setSyncStatus] = useState(STATUS_IDLE)
     const [syncResult, setSyncResult] = useState(null)
+    const legacySyncEntries = []
 
     useEffect(() => {
         fetchStatus()
@@ -71,7 +72,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
             const d = await r.json()
             if (d.success) {
                 await fetchStatus()
-                // Generar URL de autorización
+                // Generar URL de autorizaciÃ³n
                 const urlRes = await fetch('/api/ml/authorize-url')
                 const urlData = await urlRes.json()
                 setAuthUrl(urlData.url || '')
@@ -103,12 +104,12 @@ export default function MLConnectionPanel({ onSyncComplete }) {
         setExchangeStatus(STATUS_LOADING)
         setExchangeMsg('')
         try {
-            // Extraer code si el usuario pegó la URL completa
+            // Extraer code si el usuario pegÃ³ la URL completa
             let code = authCode.trim()
 
             if (code.includes('auth.mercadolibre.com.ar/authorization')) {
                 setExchangeStatus(STATUS_ERROR)
-                setExchangeMsg('❌ Error: Estás pegando la URL de INICIO. Tenés que completar la autorización en la otra ventana y pegar la URL de la página FINAL (la que dice Error o 127.0.0.1).')
+                setExchangeMsg('âŒ Error: EstÃ¡s pegando la URL de INICIO. TenÃ©s que completar la autorizaciÃ³n en la otra ventana y pegar la URL de la pÃ¡gina FINAL (la que dice Error o 127.0.0.1).')
                 return
             }
 
@@ -125,16 +126,16 @@ export default function MLConnectionPanel({ onSyncComplete }) {
             const d = await r.json()
             if (d.success) {
                 setExchangeStatus(STATUS_SUCCESS)
-                setExchangeMsg(`✅ ¡Conectado! Usuario ML: ${d.user_id}`)
+                setExchangeMsg(`âœ… Â¡Conectado! Usuario ML: ${d.user_id}`)
                 setAuthCode('')
                 await fetchStatus()
             } else {
                 setExchangeStatus(STATUS_ERROR)
-                setExchangeMsg('❌ ' + (d.error || 'Error al conectar'))
+                setExchangeMsg('âŒ ' + (d.error || 'Error al conectar'))
             }
         } catch (e) {
             setExchangeStatus(STATUS_ERROR)
-            setExchangeMsg('❌ Error: ' + e.message)
+            setExchangeMsg('âŒ Error: ' + e.message)
         }
     }
 
@@ -160,7 +161,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
     }
 
     function formatDate(iso) {
-        if (!iso) return '—'
+        if (!iso) return 'â€”'
         const d = new Date(iso)
         return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     }
@@ -184,10 +185,10 @@ export default function MLConnectionPanel({ onSyncComplete }) {
             }}>
                 <div style={{ flex: 1 }}>
                     <h2 style={{ margin: 0, color: 'var(--primary-violet)', fontSize: '1.3rem' }}>
-                        🔗 Sincronización Mercado Libre
+                        ðŸ”— SincronizaciÃ³n Mercado Libre
                     </h2>
                     <p style={{ margin: '0.3rem 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                        Importá tus ventas de ML automáticamente con un clic
+                        ImportÃ¡ tus ventas de ML automÃ¡ticamente con un clic
                     </p>
                 </div>
                 <div style={{
@@ -199,23 +200,23 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                     color: isConnected ? '#22c55e' : '#ef4444',
                     border: `1px solid ${isConnected ? '#22c55e44' : '#ef444444'}`
                 }}>
-                    {isConnected ? '● Conectado' : '○ No conectado'}
+                    {isConnected ? 'â— Conectado' : 'â—‹ No conectado'}
                 </div>
             </div>
 
             {/* Paso 1: Credenciales */}
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: '1.5rem' }}>
                 <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', color: 'var(--text)' }}>
-                    Paso 1 — Credenciales de la App ML
+                    Paso 1 â€” Credenciales de la App ML
                 </h3>
                 <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                    Creá una App en{' '}
+                    CreÃ¡ una App en{' '}
                     <a href="https://developers.mercadolibre.com.ar/devcenter" target="_blank" rel="noreferrer"
                         style={{ color: 'var(--primary-violet)' }}>
                         developers.mercadolibre.com.ar
                     </a>{' '}
                     con Redirect URI <code style={{ background: 'rgba(139,92,246,0.15)', padding: '2px 6px', borderRadius: 4 }}>https://127.0.0.1</code>{' '}
-                    y pegá el <strong>App ID</strong> y <strong>Secret Key</strong> acá:
+                    y pegÃ¡ el <strong>App ID</strong> y <strong>Secret Key</strong> acÃ¡:
                 </p>
                 <form onSubmit={handleSaveCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                     <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
@@ -238,7 +239,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                 type="password"
                                 value={clientSecret}
                                 onChange={e => setClientSecret(e.target.value)}
-                                placeholder="••••••••••••••••"
+                                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                                 style={{
                                     width: '100%', padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid var(--card-border)',
                                     background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.9rem', boxSizing: 'border-box'
@@ -270,7 +271,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                 background: 'var(--primary-violet)', color: '#fff', opacity: (savingCreds || !customRedirect) ? 0.5 : 1
                             }}
                         >
-                            {savingCreds ? 'Guardando...' : '💾 Guardar configuración'}
+                            {savingCreds ? 'Guardando...' : 'ðŸ’¾ Guardar configuraciÃ³n'}
                         </button>
                     </div>
                 </form>
@@ -282,7 +283,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                         onClick={() => setShowAdvanced(!showAdvanced)}
                         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}
                     >
-                        {showAdvanced ? '▼' : '▶'} Configuración avanzada (IDs Full, corte Full fijo)
+                        {showAdvanced ? 'â–¼' : 'â–¶'} ConfiguraciÃ³n avanzada (IDs Full, corte Full fijo)
                     </button>
                     {showAdvanced && (
                         <form onSubmit={async (e) => {
@@ -298,7 +299,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                 const d = await r.json()
                                 if (d.success) {
                                     await fetchStatus()
-                                    alert('Configuración guardada')
+                                    alert('ConfiguraciÃ³n guardada')
                                 } else alert('Error: ' + (d.error || 'desconocido'))
                             } catch (err) { alert('Error: ' + err.message) }
                             setSavingAdvanced(false)
@@ -317,7 +318,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
-                                    Corte Full histórico
+                                    Corte Full histÃ³rico
                                 </label>
                                 <input
                                     type="date"
@@ -327,11 +328,11 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                     style={{ padding: '0.5rem', borderRadius: 6, border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem' }}
                                 />
                                 <div style={{ marginTop: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    La sincronización Full toma como inicio fijo el 01/07/2025.
+                                    La sincronizaciÃ³n Full toma como inicio fijo el 01/07/2025.
                                 </div>
                             </div>
                             <button type="submit" disabled={savingAdvanced} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--primary-violet)', color: '#fff', fontSize: '0.9rem' }}>
-                                {savingAdvanced ? 'Guardando...' : 'Guardar configuración avanzada'}
+                                {savingAdvanced ? 'Guardando...' : 'Guardar configuraciÃ³n avanzada'}
                             </button>
                         </form>
                     )}
@@ -344,13 +345,13 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                 opacity: hasCredentials ? 1 : 0.4, pointerEvents: hasCredentials ? 'auto' : 'none'
             }}>
                 <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', color: 'var(--text)' }}>
-                    Paso 2 — Autorizar con Mercado Libre
+                    Paso 2 â€” Autorizar con Mercado Libre
                 </h3>
 
                 <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                    Hacé clic en el botón para abrir la pantalla de autorización de ML. Después de autorizar,
-                    el navegador te va a redirigir a una página que <strong>no carga</strong> (porque es localhost)
-                    — eso es normal. Copiá la <strong>URL completa</strong> que aparece en la barra del navegador y pegála abajo.
+                    HacÃ© clic en el botÃ³n para abrir la pantalla de autorizaciÃ³n de ML. DespuÃ©s de autorizar,
+                    el navegador te va a redirigir a una pÃ¡gina que <strong>no carga</strong> (porque es localhost)
+                    â€” eso es normal. CopiÃ¡ la <strong>URL completa</strong> que aparece en la barra del navegador y pegÃ¡la abajo.
                 </p>
 
                 <button
@@ -360,13 +361,13 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                         background: 'linear-gradient(135deg, #FFD000, #FF7733)', color: '#1a1a1a', marginBottom: '0.5rem'
                     }}
                 >
-                    🔑 Abrir autorización en Mercado Libre
+                    ðŸ”‘ Abrir autorizaciÃ³n en Mercado Libre
                 </button>
 
                 {authUrl && (
                     <div style={{ marginBottom: '1rem' }}>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>
-                            Si el botón no abre, copiá y pegá esto en una pestaña nueva (preferentemente Incógnito):
+                            Si el botÃ³n no abre, copiÃ¡ y pegÃ¡ esto en una pestaÃ±a nueva (preferentemente IncÃ³gnito):
                         </p>
                         <code style={{
                             display: 'block', padding: '0.5rem', background: 'rgba(0,0,0,0.2)',
@@ -380,13 +381,13 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                 <form onSubmit={handleExchangeCode} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                     <div>
                         <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
-                            Pegá aquí la URL completa o solo el código (code=XXXXX)
+                            PegÃ¡ aquÃ­ la URL completa o solo el cÃ³digo (code=XXXXX)
                         </label>
                         <input
                             type="text"
                             value={authCode}
                             onChange={e => setAuthCode(e.target.value)}
-                            placeholder="https://localhost?code=TG-XXXXXXXX-... (o solo el código)"
+                            placeholder="https://localhost?code=TG-XXXXXXXX-... (o solo el cÃ³digo)"
                             style={{
                                 width: '100%', padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid var(--card-border)',
                                 background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', boxSizing: 'border-box'
@@ -412,7 +413,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                 opacity: (exchangeStatus === STATUS_LOADING || !authCode) ? 0.5 : 1
                             }}
                         >
-                            {exchangeStatus === STATUS_LOADING ? 'Conectando...' : '✅ Conectar cuenta'}
+                            {exchangeStatus === STATUS_LOADING ? 'Conectando...' : 'âœ… Conectar cuenta'}
                         </button>
                     </div>
                 </form>
@@ -425,12 +426,12 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                 opacity: isConnected ? 1 : 0.4, pointerEvents: isConnected ? 'auto' : 'none'
             }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--text)' }}>
-                    Paso 3 — Sincronizar movimientos Full
+                    Paso 3 — Sincronizar ventas Full
                 </h3>
                 <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    Importa ventas y recepciones de Full desde Mercado Libre sin duplicar las ya existentes.
+                    Importa ventas Full desde Mercado Libre sin duplicar las ya existentes.
                     {mlStatus.last_sync && (
-                        <span> Último sync: <strong>{formatDate(mlStatus.last_sync)}</strong></span>
+                        <span> Ãšltimo sync: <strong>{formatDate(mlStatus.last_sync)}</strong></span>
                     )}
                 </p>
 
@@ -445,8 +446,8 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                     }}
                 >
                     {syncStatus === STATUS_LOADING
-                        ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span> Sincronizando...</>
-                        : '🔄 Sincronizar ahora'}
+                        ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>âŸ³</span> Sincronizando...</>
+                        : 'ðŸ”„ Sincronizar ahora'}
                 </button>
 
                 {/* Resultado del sync */}
@@ -460,7 +461,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                             {syncResult.message}
                         </p>
 
-                        {(syncResult.newSales > 0 || syncResult.newEntries > 0) && (
+                        {syncResult.newSales > 0 && (
                             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                                 <span style={{
                                     padding: '0.35rem 0.7rem',
@@ -472,15 +473,20 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                 }}>
                                     Ventas: {syncResult.newSales || 0}
                                 </span>
+                            </div>
+                        )}
+
+                        {syncResult.unresolvedSales?.length > 0 && (
+                            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                                 <span style={{
                                     padding: '0.35rem 0.7rem',
                                     borderRadius: 999,
-                                    background: 'rgba(34,197,94,0.12)',
-                                    color: '#22c55e',
+                                    background: 'rgba(239,68,68,0.12)',
+                                    color: '#f87171',
                                     fontWeight: 700,
                                     fontSize: '0.8rem'
                                 }}>
-                                    Ingresos: {syncResult.newEntries || 0}
+                                    Pendientes: {syncResult.unresolvedSales.length}
                                 </span>
                             </div>
                         )}
@@ -492,7 +498,7 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                         <thead>
                                             <tr style={{ borderBottom: '1px solid var(--card-border)' }}>
-                                                {['Operación', 'Producto', 'Talle', 'Color', 'Cant.', 'Fecha'].map(h => (
+                                                {['OperaciÃ³n', 'Producto', 'Talle', 'Color', 'Cant.', 'Fecha'].map(h => (
                                                     <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                                                 ))}
                                             </tr>
@@ -516,20 +522,20 @@ export default function MLConnectionPanel({ onSyncComplete }) {
                             </>
                         )}
 
-                        {syncResult.entries && syncResult.entries.length > 0 && (
+                        {false && (
                             <>
                                 <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>Ingresos importados</p>
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid var(--card-border)' }}>
-                                            {['Operación', 'Producto', 'Talle', 'Color', 'Cant.', 'Fecha'].map(h => (
+                                            {['OperaciÃ³n', 'Producto', 'Talle', 'Color', 'Cant.', 'Fecha'].map(h => (
                                                 <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {syncResult.entries.map((entry, i) => (
+                                        {legacySyncEntries.map((entry, i) => (
                                             <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                                 <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                                                     {String(entry.mlOperationId || entry.mlInboundId || entry.id).slice(0, 16)}

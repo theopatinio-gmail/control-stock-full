@@ -4,7 +4,10 @@ import Dashboard from './components/Dashboard'
 import ManualMovementForm from './components/ManualMovementForm'
 import MovementsHistory from './components/MovementsHistory'
 import MLConnectionPanel from './components/MLConnectionPanel'
+import Reports from './components/Reports'
+import ProductCosts from './components/ProductCosts'
 import { INITIAL_STATE } from './constants/initialState'
+import { getProductCatalogEntry } from './utils/productMapping'
 const SAVE_DEBOUNCE_MS = 600
 
 function App() {
@@ -12,6 +15,7 @@ function App() {
   const [data, setData] = useState(INITIAL_STATE)
   const [loading, setLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState(null)
+  const [productCosts, setProductCosts] = useState({})
   const saveTimeoutRef = useRef(null)
 
   const loadData = () => {
@@ -21,12 +25,20 @@ function App() {
         return res.json();
       })
       .then(json => {
+        const manualProducts = Array.isArray(json.manualMovements)
+          ? [...new Set(
+              json.manualMovements
+                .filter(m => m?.product && m.source !== 'mercadolibre' && m.origin !== 'ml-sale')
+                .map(m => m.product)
+            )]
+          : []
+        const products = [...new Set([...INITIAL_STATE.products, ...manualProducts])]
         setData({
           ...INITIAL_STATE,
           ...json,
           manualMovements: Array.isArray(json.manualMovements) ? json.manualMovements : [],
           sales: Array.isArray(json.sales) ? json.sales : [],
-          products: Array.isArray(json.products) ? json.products : INITIAL_STATE.products,
+          products,
           mlStock: Array.isArray(json.mlStock) ? json.mlStock : [],
           mlStockFetchedAt: json.mlStockFetchedAt ?? null
         })
@@ -40,6 +52,13 @@ function App() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  useEffect(() => {
+    fetch('http://localhost:3001/api/product-costs')
+      .then(res => res.json())
+      .then(d => setProductCosts(d.productCosts || {}))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (loading) return
@@ -67,38 +86,67 @@ function App() {
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }
   }, [data, loading])
 
-  const addManualMovement = (movement) => {
+  const addManualMovements = (movements) => {
+    const normalizedMovements = Array.isArray(movements) ? movements.filter(Boolean) : []
+    if (normalizedMovements.length === 0) return
+
     setData(prev => ({
       ...prev,
-      manualMovements: [movement, ...(prev.manualMovements || [])]
+      manualMovements: [...normalizedMovements, ...(prev.manualMovements || [])]
     }))
     setActiveTab('dashboard') // Redirect to dashboard to see the updated stock
   }
 
-  const convertSaleToManualMovement = (sale) => {
+  const addManualMovement = (movement) => {
+    addManualMovements([movement])
+  }
+
+  const convertSaleToManualMovement = (sale, resolvedProductName = '', resolvedColorName = '') => {
     if (!sale) return false
 
     const opNumber = String(sale.opNumber || '').trim()
     const saleOriginId = sale.id || `ml-${opNumber}`
+    const finalProductName = String(resolvedProductName || sale.product || '').trim()
+    const productEntry = getProductCatalogEntry(finalProductName)
+    const catalogColors = productEntry?.colors || []
+    const selectedColor = String(resolvedColorName || sale.color || '').trim()
+    const finalColorName = selectedColor !== 'Unico'
+      ? selectedColor
+      : (catalogColors.length === 1 ? catalogColors[0] : selectedColor)
+
+    if (!finalProductName) {
+      alert('No se pudo determinar el artículo para esta venta.')
+      return false
+    }
+
+    if (!data.products.includes(finalProductName)) {
+      alert('El artículo elegido no existe en la lista de artículos habilitados.')
+      return false
+    }
+
+    if ((sale.color === 'Unico' || finalColorName === 'Unico') && catalogColors.length > 1) {
+      alert('Necesito que elijas el color correcto antes de pasar esta venta a egreso.')
+      return false
+    }
 
     const movement = {
       id: `ml-manual-${saleOriginId}`,
       opNumber,
-      product: sale.product,
+      product: finalProductName,
       talle: sale.talle,
-      color: sale.color,
+      color: finalColorName,
       type: 'egreso',
       quantity: Number(sale.cantidad || 1),
       date: sale.fechaVenta || new Date().toISOString().split('T')[0],
       source: 'mercadolibre',
-      originSaleId: sale.id || null,
+      originSaleId: saleOriginId,
       originSaleOpNumber: opNumber || null,
       origin: 'ml-sale'
     }
 
     let added = false
     setData(prev => {
-      const alreadyConverted = (prev.manualMovements || []).some(m => m.originSaleId === sale.id)
+      const alreadyConverted = (prev.manualMovements || []).some(m => m.originSaleId === saleOriginId)
       if (alreadyConverted) {
         return prev
       }
@@ -113,6 +161,62 @@ function App() {
       alert('Ese movimiento ya fue cargado desde esa venta de ML.')
       return false
     }
+
+    setActiveTab('dashboard')
+    return true
+  }
+
+  const registerSaleReturn = (sale, requestedQuantity) => {
+    if (!sale) return false
+
+    const saleOriginId = sale.id || `ml-${String(sale.opNumber || '').trim()}`
+    const saleQuantity = Number(sale.cantidad || 1)
+    const returnedQuantity = (data.manualMovements || []).reduce((sum, movement) => {
+      if (movement?.type !== 'devolucion') return sum
+      if (movement.originSaleId !== saleOriginId) return sum
+      return sum + Number(movement.quantity || 1)
+    }, 0)
+    const availableQuantity = Math.max(0, saleQuantity - returnedQuantity)
+
+    if (availableQuantity <= 0) {
+      alert('Esa venta ya tiene registrada la devolución completa.')
+      return false
+    }
+
+    let quantity = requestedQuantity
+    if (quantity == null) {
+      const rawValue = window.prompt(
+        `Cantidad a devolver para ${sale.product || 'la venta seleccionada'} (1 a ${availableQuantity})`,
+        String(availableQuantity)
+      )
+      if (rawValue === null) return false
+      quantity = Number.parseInt(rawValue, 10)
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > availableQuantity) {
+      alert(`Ingresá una cantidad válida entre 1 y ${availableQuantity}.`)
+      return false
+    }
+
+    const movement = {
+      id: `ml-return-${saleOriginId}-${Date.now()}`,
+      opNumber: sale.opNumber || '',
+      product: sale.product,
+      talle: sale.talle,
+      color: sale.color,
+      type: 'devolucion',
+      quantity,
+      date: new Date().toISOString().split('T')[0],
+      source: 'mercadolibre',
+      originSaleId: saleOriginId,
+      originSaleOpNumber: sale.opNumber || null,
+      origin: 'ml-return'
+    }
+
+    setData(prev => ({
+      ...prev,
+      manualMovements: [movement, ...(prev.manualMovements || [])]
+    }))
 
     setActiveTab('dashboard')
     return true
@@ -164,8 +268,14 @@ function App() {
         <button className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')}>
           📋 Historial Ventas/Movimientos
         </button>
+        <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>
+          📊 Informes
+        </button>
         <button className={activeTab === 'ml' ? 'active' : ''} onClick={() => setActiveTab('ml')}>
           🔄 Sincronizar ML
+        </button>
+        <button className={activeTab === 'costos' ? 'active' : ''} onClick={() => setActiveTab('costos')}>
+          💵 Costos
         </button>
       </nav>
 
@@ -183,16 +293,33 @@ function App() {
             {activeTab === 'form' && (
               <ManualMovementForm 
                 products={data.products || []} 
+                manualMovements={data.manualMovements || []}
                 onAddMovement={addManualMovement}
+                onAddMovements={addManualMovements}
                 onAddProduct={addProduct}
               />
             )}
             {activeTab === 'history' && (
-              <MovementsHistory 
-                sales={data.sales || []} 
+            <MovementsHistory 
+              sales={data.sales || []} 
+              manualMovements={data.manualMovements || []}
+              products={data.products || []}
+              onConvertSaleToManualMovement={convertSaleToManualMovement}
+              onRegisterSaleReturn={registerSaleReturn}
+            />
+          )}
+            {activeTab === 'reports' && (
+              <Reports
                 manualMovements={data.manualMovements || []}
-                onConvertSaleToManualMovement={convertSaleToManualMovement}
+                sales={data.sales || []}
+                products={data.products || []}
+                mlStock={data.mlStock || []}
+                mlStockFetchedAt={data.mlStockFetchedAt || null}
+                productCosts={productCosts}
               />
+            )}
+            {activeTab === 'costos' && (
+              <ProductCosts products={data.products || []} />
             )}
             {activeTab === 'ml' && (
               <MLConnectionPanel 
