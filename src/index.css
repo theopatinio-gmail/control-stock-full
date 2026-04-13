@@ -1270,3 +1270,117 @@ nav button.active {
     grid-column: auto;
   }
 }
+
+/* ---- Tabla Riesgo de Cierre de Depósito ---- */
+.zerostock-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.zerostock-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  white-space: nowrap;
+}
+
+.zerostock-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  vertical-align: middle;
+}
+
+.zerostock-row:last-child td {
+  border-bottom: none;
+}
+
+.zerostock-product {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-main);
+}
+
+.zerostock-center {
+  text-align: center;
+}
+
+.zerostock-stock {
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.zerostock-nodata {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Urgency badge */
+.urgency-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.urgency-badge.urgency-blocked {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+}
+
+.urgency-badge.urgency-critical {
+  background: rgba(251, 146, 60, 0.18);
+  color: #fb923c;
+}
+
+.urgency-badge.urgency-warning {
+  background: rgba(250, 204, 21, 0.18);
+  color: #ca8a04;
+}
+
+.urgency-badge.urgency-safe {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.urgency-badge.urgency-unknown {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted);
+}
+
+/* Fila coloreada según urgencia */
+.zerostock-row.urgency-blocked {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.zerostock-row.urgency-critical {
+  background: rgba(251, 146, 60, 0.04);
+}
+
+.zerostock-row.urgency-warning {
+  background: rgba(250, 204, 21, 0.03);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: var(--text-muted);
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-secondary:hover {
+  border-color: var(--primary-violet);
+  color: var(--primary-violet);
+}
