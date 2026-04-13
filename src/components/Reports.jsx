@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { getProductCatalogEntry, normalizeProductName, PRODUCT_CATALOG } from '../utils/productMapping';
+import { getProductCatalogEntry, normalizeProductName } from '../utils/productMapping';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS = 12;
@@ -292,75 +292,72 @@ const Reports = ({ manualMovements = [], sales = [], products = [], mlStock = []
         const activeMl = mlStock.filter(item => item.active).length;
 
         // --- Riesgo de cierre de depósito (variantes con stock=0 y countdown de 30 días) ---
+        // Usa exactamente el mismo cálculo que el Dashboard: itera manualMovements agrupando por product|talle|color
         const todayMs = new Date().setHours(0, 0, 0, 0);
-        const zeroStockVariants = [];
+        const allowedProductsSet = new Set(products.filter(Boolean));
 
-        PRODUCT_CATALOG.forEach(catalogEntry => {
-            const canonical = catalogEntry.canonical;
-            catalogEntry.sizes.forEach(size => {
-                catalogEntry.colors.forEach(color => {
-                    // Calcular stock actual de esta variante
-                    let variantStock = 0;
-                    manualMovements.forEach(m => {
-                        if (m.product !== canonical) return;
-                        if (m.talle !== size) return;
-                        if (m.color !== color) return;
-                        const qty = Number(m.quantity || 1);
-                        if (m.type === 'ingreso' || m.type === 'devolucion') variantStock += qty;
-                        else if (m.type === 'egreso') variantStock -= qty;
-                    });
+        // Paso 1: construir stockMap de variantes (idéntico al Dashboard)
+        const variantStockMap = {}; // "product|talle|color" -> qty
+        const variantLastEgresoMap = {}; // "product|talle|color" -> última fecha de egreso
 
-                    if (variantStock > 0) return; // Solo mostrar stock ≤ 0
-
-                    // Buscar fecha de última venta en ventas ML
-                    let lastSaleDateKey = null;
-                    sales.forEach(s => {
-                        const sCanonical = canonicalizeProductName(s.product || '');
-                        if (sCanonical !== canonical) return;
-                        if (s.talle !== size) return;
-                        const sColor = s.color || '';
-                        // Aceptar coincidencia exacta de color, o 'Unico' si el producto tiene un solo color
-                        if (sColor !== color && !(sColor === 'Unico' && catalogEntry.colors.length === 1)) return;
-                        const d = toDateKey(s.fechaVenta);
-                        if (d && (!lastSaleDateKey || d > lastSaleDateKey)) lastSaleDateKey = d;
-                    });
-
-                    // También revisar egresos manuales como respaldo
-                    manualMovements.forEach(m => {
-                        if (m.type !== 'egreso') return;
-                        if (m.product !== canonical) return;
-                        if (m.talle !== size) return;
-                        if (m.color !== color) return;
-                        const d = toDateKey(m.date);
-                        if (d && (!lastSaleDateKey || d > lastSaleDateKey)) lastSaleDateKey = d;
-                    });
-
-                    let daysSinceSale = null;
-                    let daysRemaining = null;
-                    if (lastSaleDateKey) {
-                        const lastMs = new Date(`${lastSaleDateKey}T00:00:00`).getTime();
-                        daysSinceSale = Math.floor((todayMs - lastMs) / DAY_MS);
-                        daysRemaining = 30 - daysSinceSale;
-                    }
-
-                    zeroStockVariants.push({
-                        product: canonical,
-                        size,
-                        color,
-                        stock: variantStock,
-                        lastSaleDate: lastSaleDateKey,
-                        daysSinceSale,
-                        daysRemaining
-                    });
-                });
-            });
+        manualMovements.forEach(m => {
+            if (!allowedProductsSet.has(m.product)) return;
+            const key = `${m.product}|${m.talle || ''}|${m.color || ''}`;
+            const qty = Number(m.quantity || 1);
+            if (m.type === 'ingreso' || m.type === 'devolucion') {
+                variantStockMap[key] = (variantStockMap[key] || 0) + qty;
+            } else if (m.type === 'egreso') {
+                variantStockMap[key] = (variantStockMap[key] || 0) - qty;
+                const d = toDateKey(m.date);
+                if (d && (!variantLastEgresoMap[key] || d > variantLastEgresoMap[key])) {
+                    variantLastEgresoMap[key] = d;
+                }
+            }
         });
 
-        // Ordenar: primero sin datos de venta, luego por días restantes ascendente (más urgentes primero)
+        // Paso 2: última venta ML por variante (normalizada a canonical)
+        const variantLastSaleMap = { ...variantLastEgresoMap };
+        sales.forEach(s => {
+            const canonical = canonicalizeProductName(s.product || '');
+            if (!canonical) return;
+            const d = toDateKey(s.fechaVenta);
+            if (!d) return;
+            // Intentar matchear con claves existentes en variantStockMap
+            // La clave del movimiento usa el nombre tal como está guardado en manualMovements
+            // Buscar todas las claves que empiecen con un producto cuyo canonical coincida
+            for (const key of Object.keys(variantStockMap)) {
+                const [kProduct, kTalle, kColor] = key.split('|');
+                if (canonicalizeProductName(kProduct) !== canonical) continue;
+                if (kTalle !== (s.talle || '')) continue;
+                const sColor = s.color || '';
+                if (kColor !== sColor && sColor !== 'Unico') continue;
+                if (!variantLastSaleMap[key] || d > variantLastSaleMap[key]) {
+                    variantLastSaleMap[key] = d;
+                }
+            }
+        });
+
+        // Paso 3: filtrar variantes con stock ≤ 0
+        const zeroStockVariants = Object.entries(variantStockMap)
+            .filter(([, stock]) => stock <= 0)
+            .map(([key, stock]) => {
+                const [product, size, color] = key.split('|');
+                const lastSaleDateKey = variantLastSaleMap[key] || null;
+                let daysSinceSale = null;
+                let daysRemaining = null;
+                if (lastSaleDateKey) {
+                    const lastMs = new Date(`${lastSaleDateKey}T00:00:00`).getTime();
+                    daysSinceSale = Math.floor((todayMs - lastMs) / DAY_MS);
+                    daysRemaining = 30 - daysSinceSale;
+                }
+                return { product, size, color, stock, lastSaleDate: lastSaleDateKey, daysSinceSale, daysRemaining };
+            });
+
+        // Ordenar: más urgentes primero (menos días restantes), sin datos al final
         zeroStockVariants.sort((a, b) => {
             if (a.daysRemaining === null && b.daysRemaining === null) return a.product.localeCompare(b.product);
-            if (a.daysRemaining === null) return -1;
-            if (b.daysRemaining === null) return 1;
+            if (a.daysRemaining === null) return 1;
+            if (b.daysRemaining === null) return -1;
             return a.daysRemaining - b.daysRemaining;
         });
 
