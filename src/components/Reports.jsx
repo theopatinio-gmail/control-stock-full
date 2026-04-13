@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { getProductCatalogEntry, normalizeProductName } from '../utils/productMapping';
+import { getProductCatalogEntry, normalizeProductName, PRODUCT_CATALOG } from '../utils/productMapping';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS = 12;
@@ -291,6 +291,79 @@ const Reports = ({ manualMovements = [], sales = [], products = [], mlStock = []
         const topMovements = stockRows.filter(row => row.movements > 0).sort((a, b) => b.movements - a.movements).slice(0, 5);
         const activeMl = mlStock.filter(item => item.active).length;
 
+        // --- Riesgo de cierre de depósito (variantes con stock=0 y countdown de 30 días) ---
+        const todayMs = new Date().setHours(0, 0, 0, 0);
+        const zeroStockVariants = [];
+
+        PRODUCT_CATALOG.forEach(catalogEntry => {
+            const canonical = catalogEntry.canonical;
+            catalogEntry.sizes.forEach(size => {
+                catalogEntry.colors.forEach(color => {
+                    // Calcular stock actual de esta variante
+                    let variantStock = 0;
+                    manualMovements.forEach(m => {
+                        if (m.product !== canonical) return;
+                        if (m.talle !== size) return;
+                        if (m.color !== color) return;
+                        const qty = Number(m.quantity || 1);
+                        if (m.type === 'ingreso' || m.type === 'devolucion') variantStock += qty;
+                        else if (m.type === 'egreso') variantStock -= qty;
+                    });
+
+                    if (variantStock > 0) return; // Solo mostrar stock ≤ 0
+
+                    // Buscar fecha de última venta en ventas ML
+                    let lastSaleDateKey = null;
+                    sales.forEach(s => {
+                        const sCanonical = canonicalizeProductName(s.product || '');
+                        if (sCanonical !== canonical) return;
+                        if (s.talle !== size) return;
+                        const sColor = s.color || '';
+                        // Aceptar coincidencia exacta de color, o 'Unico' si el producto tiene un solo color
+                        if (sColor !== color && !(sColor === 'Unico' && catalogEntry.colors.length === 1)) return;
+                        const d = toDateKey(s.fechaVenta);
+                        if (d && (!lastSaleDateKey || d > lastSaleDateKey)) lastSaleDateKey = d;
+                    });
+
+                    // También revisar egresos manuales como respaldo
+                    manualMovements.forEach(m => {
+                        if (m.type !== 'egreso') return;
+                        if (m.product !== canonical) return;
+                        if (m.talle !== size) return;
+                        if (m.color !== color) return;
+                        const d = toDateKey(m.date);
+                        if (d && (!lastSaleDateKey || d > lastSaleDateKey)) lastSaleDateKey = d;
+                    });
+
+                    let daysSinceSale = null;
+                    let daysRemaining = null;
+                    if (lastSaleDateKey) {
+                        const lastMs = new Date(`${lastSaleDateKey}T00:00:00`).getTime();
+                        daysSinceSale = Math.floor((todayMs - lastMs) / DAY_MS);
+                        daysRemaining = 30 - daysSinceSale;
+                    }
+
+                    zeroStockVariants.push({
+                        product: canonical,
+                        size,
+                        color,
+                        stock: variantStock,
+                        lastSaleDate: lastSaleDateKey,
+                        daysSinceSale,
+                        daysRemaining
+                    });
+                });
+            });
+        });
+
+        // Ordenar: primero sin datos de venta, luego por días restantes ascendente (más urgentes primero)
+        zeroStockVariants.sort((a, b) => {
+            if (a.daysRemaining === null && b.daysRemaining === null) return a.product.localeCompare(b.product);
+            if (a.daysRemaining === null) return -1;
+            if (b.daysRemaining === null) return 1;
+            return a.daysRemaining - b.daysRemaining;
+        });
+
         return {
             totalIn,
             totalOut,
@@ -307,7 +380,8 @@ const Reports = ({ manualMovements = [], sales = [], products = [], mlStock = []
             topMovements,
             activeMl,
             mlStockCount: mlStock.length,
-            mlStockFetchedAt
+            mlStockFetchedAt,
+            zeroStockVariants
         };
     }, [manualMovements, sales, products, mlStock, mlStockFetchedAt, productCosts]);
 
@@ -443,7 +517,9 @@ const Reports = ({ manualMovements = [], sales = [], products = [], mlStock = []
                     </div>
                 </section>
 
-                <FinancialReport 
+                <ZeroStockCountdown variants={report.zeroStockVariants} />
+
+                <FinancialReport
                     sales={sales} 
                     manualMovements={manualMovements}
                     products={products} 
@@ -456,6 +532,106 @@ const Reports = ({ manualMovements = [], sales = [], products = [], mlStock = []
 };
 
 export default Reports;
+
+function ZeroStockCountdown({ variants = [] }) {
+    const [showAll, setShowAll] = useState(false);
+
+    function urgencyTone(daysRemaining) {
+        if (daysRemaining === null) return { label: 'Sin datos', cls: 'urgency-unknown' };
+        if (daysRemaining <= 0) return { label: 'BLOQUEADO', cls: 'urgency-blocked' };
+        if (daysRemaining <= 7) return { label: `${daysRemaining}d`, cls: 'urgency-critical' };
+        if (daysRemaining <= 15) return { label: `${daysRemaining}d`, cls: 'urgency-warning' };
+        return { label: `${daysRemaining}d`, cls: 'urgency-safe' };
+    }
+
+    const displayed = showAll ? variants : variants.slice(0, 20);
+    const blockedCount = variants.filter(v => v.daysRemaining !== null && v.daysRemaining <= 0).length;
+    const criticalCount = variants.filter(v => v.daysRemaining !== null && v.daysRemaining > 0 && v.daysRemaining <= 7).length;
+
+    return (
+        <section className="card glass report-card report-card-wide">
+            <div className="report-card-head">
+                <div>
+                    <h3>⏳ Riesgo de cierre de depósito</h3>
+                    <p>
+                        Variantes con stock 0 y días restantes para poder seguir enviando stock.
+                        ML bloquea el envío si una variante no vende en <strong>30 días</strong>.
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {blockedCount > 0 && (
+                        <span className="grand-total-badge" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                            {blockedCount} bloqueada{blockedCount !== 1 ? 's' : ''}
+                        </span>
+                    )}
+                    {criticalCount > 0 && (
+                        <span className="grand-total-badge" style={{ background: 'rgba(251,146,60,0.15)', color: '#fb923c' }}>
+                            {criticalCount} crítica{criticalCount !== 1 ? 's' : ''} (&lt;7d)
+                        </span>
+                    )}
+                    {variants.length === 0 && (
+                        <span className="grand-total-badge positive">Sin riesgo</span>
+                    )}
+                </div>
+            </div>
+
+            {variants.length === 0 ? (
+                <div className="report-empty-note">Todas las variantes tienen stock disponible. No hay riesgo de cierre.</div>
+            ) : (
+                <>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="zerostock-table">
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th>Talle</th>
+                                    <th>Color</th>
+                                    <th>Stock</th>
+                                    <th>Última venta</th>
+                                    <th>Días sin venta</th>
+                                    <th>Días restantes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {displayed.map(v => {
+                                    const tone = urgencyTone(v.daysRemaining);
+                                    return (
+                                        <tr key={`${v.product}|${v.size}|${v.color}`} className={`zerostock-row ${tone.cls}`}>
+                                            <td className="zerostock-product">{v.product}</td>
+                                            <td className="zerostock-center">{v.size}</td>
+                                            <td className="zerostock-center">{v.color}</td>
+                                            <td className="zerostock-center zerostock-stock">{v.stock}</td>
+                                            <td className="zerostock-center">
+                                                {v.lastSaleDate
+                                                    ? new Date(`${v.lastSaleDate}T00:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                                    : <span className="zerostock-nodata">Sin datos</span>}
+                                            </td>
+                                            <td className="zerostock-center">
+                                                {v.daysSinceSale !== null ? `${v.daysSinceSale}d` : <span className="zerostock-nodata">-</span>}
+                                            </td>
+                                            <td className="zerostock-center">
+                                                <span className={`urgency-badge ${tone.cls}`}>{tone.label}</span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    {variants.length > 20 && (
+                        <button
+                            className="btn-secondary"
+                            style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}
+                            onClick={() => setShowAll(prev => !prev)}
+                        >
+                            {showAll ? 'Ver menos' : `Ver todas (${variants.length})`}
+                        </button>
+                    )}
+                </>
+            )}
+        </section>
+    );
+}
 
 function FinancialReport({ sales = [], manualMovements = [], products = [], productCosts = {}, mlStock = [] }) {
     const [filterProduct, setFilterProduct] = useState('todos');
