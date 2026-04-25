@@ -662,7 +662,8 @@ function FinancialReport({ sales = [], manualMovements = [], products = [], prod
             const returnedQty = returnedQtyBySaleId[sale.id] || 0;
             const quantity = Number(sale.cantidad || 1);
             const effectiveQuantity = Math.max(0, quantity - returnedQty);
-            return { ...sale, returnedQty, effectiveQuantity };
+            const effectiveRatio = quantity > 0 ? effectiveQuantity / quantity : 0;
+            return { ...sale, returnedQty, effectiveQuantity, effectiveRatio };
         })
         .filter(sale => {
             if (filterProduct !== 'todos' && sale.canonicalProduct !== filterProduct) return false;
@@ -671,9 +672,9 @@ function FinancialReport({ sales = [], manualMovements = [], products = [], prod
             return true;
         });
 
-    const totalFacturacion = filteredSales.reduce((sum, s) => sum + (s.totalVenta || 0), 0);
-    const totalComisiones = filteredSales.reduce((sum, s) => sum + (s.comisionML || 0), 0);
-    const totalEnvio = filteredSales.reduce((sum, s) => sum + (s.costoEnvio || 0), 0);
+    const totalFacturacion = filteredSales.reduce((sum, s) => sum + (s.totalVenta || 0) * s.effectiveRatio, 0);
+    const totalComisiones = filteredSales.reduce((sum, s) => sum + (s.comisionML || 0) * s.effectiveRatio, 0);
+    const totalEnvio = filteredSales.reduce((sum, s) => sum + (s.costoEnvio || 0) * s.effectiveRatio, 0);
     const totalUnidades = filteredSales.reduce((sum, s) => sum + (s.effectiveQuantity || 0), 0);
     const totalCosto = filteredSales.reduce((sum, s) => {
         const costoUnit = productCosts[s.canonicalProduct] || productCosts[s.product] || 0;
@@ -699,9 +700,9 @@ function FinancialReport({ sales = [], manualMovements = [], products = [], prod
             acc[key] = { unidades: 0, facturacion: 0, costo: 0, comision: 0, envio: 0 };
         }
         acc[key].unidades += sale.effectiveQuantity || 0;
-        acc[key].facturacion += sale.totalVenta || 0;
-        acc[key].comision += sale.comisionML || 0;
-        acc[key].envio += sale.costoEnvio || 0;
+        acc[key].facturacion += (sale.totalVenta || 0) * sale.effectiveRatio;
+        acc[key].comision += (sale.comisionML || 0) * sale.effectiveRatio;
+        acc[key].envio += (sale.costoEnvio || 0) * sale.effectiveRatio;
         acc[key].costo += (productCosts[sale.canonicalProduct] || productCosts[sale.product] || 0) * (sale.effectiveQuantity || 0);
         return acc;
     }, {});

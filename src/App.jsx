@@ -6,6 +6,7 @@ import MovementsHistory from './components/MovementsHistory'
 import MLConnectionPanel from './components/MLConnectionPanel'
 import Reports from './components/Reports'
 import ProductCosts from './components/ProductCosts'
+import RiesgoFull from './components/RiesgoFull'
 import { INITIAL_STATE } from './constants/initialState'
 import { getProductCatalogEntry } from './utils/productMapping'
 const SAVE_DEBOUNCE_MS = 600
@@ -277,6 +278,9 @@ function App() {
         <button className={activeTab === 'costos' ? 'active' : ''} onClick={() => setActiveTab('costos')}>
           💵 Costos
         </button>
+        <button className={activeTab === 'riesgo' ? 'active' : ''} onClick={() => setActiveTab('riesgo')}>
+          ⏳ Riesgo Full
+        </button>
       </nav>
 
       <main>
@@ -320,6 +324,16 @@ function App() {
             )}
             {activeTab === 'costos' && (
               <ProductCosts products={data.products || []} />
+            )}
+            {activeTab === 'riesgo' && (
+              <RiesgoFull
+                manualMovements={data.manualMovements || []}
+                sales={data.sales || []}
+                mlStock={data.mlStock || []}
+                mlStockFetchedAt={data.mlStockFetchedAt || null}
+                productCosts={productCosts}
+                onStockRefreshed={loadData}
+              />
             )}
             {activeTab === 'ml' && (
               <MLConnectionPanel 
